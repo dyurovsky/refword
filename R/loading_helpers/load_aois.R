@@ -28,10 +28,9 @@ get_train_aois <- function(video) {
          str_count(train_aoi_xml[x]$DynamicAOI$Name,"M2_") > 0 | 
          str_count(train_aoi_xml[x]$DynamicAOI$Name,"D1_") > 0 | 
          str_count(train_aoi_xml[x]$DynamicAOI$Name,"D2_") > 0}, simplify = TRUE)]
-   }
-  
-  
+   } else {
    train_aois <- train_aoi_xml
+   }
    
   make_aoi_keyframe = function(aoi, key_frame) {
     key_frame_df <- aoi$KeyFrames[key_frame]$KeyFrame

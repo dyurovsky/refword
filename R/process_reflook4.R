@@ -26,7 +26,7 @@ library(langcog)
 SKIP_LINES_1 <- 35
 SKIP_LINES_2 <- 38
 
-video = 2
+video = 1
 
 VIDEOS = c("reflook", "birthday", "kitchen")
 LEARN_STIMS = c("reflook4_4.avi","ref-asd-birthday2.avi","ref-asd-kitchen2.avi")
@@ -135,7 +135,6 @@ train_all_aoi_data <- left_join(learn_data, train_aois) %>%
            (y >= top_left_y - AOI_BUFFER) &
            (y <= bottom_right_y + AOI_BUFFER)) %>%
   ungroup()
-  
   
 train_other_data <- train_all_aoi_data %>%
   group_by(subj, Time) %>%

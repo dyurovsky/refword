@@ -54,7 +54,7 @@ adjust_calibs <- function(plot = TRUE,video) {
     ggplot(aes(x = x,y = y,color=interaction(measure,instance)), data = subj_data) + 
       facet_grid(. ~ measure, labeller = labeli) +
       geom_point(size = .8) +
-      geom_point(aes(x = true.x, y = true.y), color="black", shape = 3, size = 3)+
+      geom_point(aes(x = true_x, y = true_y), color="black", shape = 3, size = 3)+
       scale_color_brewer(palette="Set1") +
       scale_x_continuous(limits=c(0, X_MAX), breaks=seq(0, X_MAX, 500))+
       scale_y_continuous(limits=c(0, Y_MAX), breaks=seq(0, Y_MAX, 500))+
