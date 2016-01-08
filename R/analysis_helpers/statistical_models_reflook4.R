@@ -1,25 +1,33 @@
 ###############################################################################
 ################################# T-STATISTICS ################################
 ###############################################################################
+dependents <- test_data_subj %>%
+ # filter(age_grp == "ASD") %>%
+  filter(age_grp != "ASD", age_grp != "adult") %>%
+   spread(type, prop) 
 
-dependents <- test.data.subj %>%
-  filter(age.grp != "adult") %>%
-   spread(type,prop) #%>%
-#   filter(subj %in% unique(kept.subjs$subj))
+independents <- train_data_subj %>%
+#  filter(age_grp == "ASD") %>%
+  filter(age_grp != "ASD", age_grp != "adult") %>%
+  spread(window_type,prop) %>%
+  filter(aoi == "TD")
 
-independents <- train.data.subj %>%
-  filter(age.grp != "adult",aoi == "TD") %>%
-  spread(window.type,prop) #%>%
-#   filter(subj %in% unique(kept.subjs$subj))
+model_df <- left_join(dependents, independents) %>%
+  filter(!is.na(Novel), !is.na(look_name2))
 
-model.df <- left_join(dependents,independents)
+lm_age <-  lm(Novel ~  age, data = model_df)
 
-lm <- lm(Novel ~ look.name2 ,data = model.df)
+model_df$resid <- lm_age$residuals
 
-library(lattice)
-splom(select(model.df, Novel, age, look.name2))
-with(model.df,cor.test(look.name2
-                       ,Novel))
+lm_look <- lm(resid ~  look_name2 ,
+         data = model_df)
+
+model_df$predict <- predict(lm)
+
+#ggcorplot(model_df)
+with(model_df,cor.test(Novel,predict))
+
+
 
 #Make a table of t, df, and p-vals
 ts <- ttest.data %>%

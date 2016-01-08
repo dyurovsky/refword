@@ -1,38 +1,27 @@
 get_test_aois <- function() {
-  test_aoi_xml <- xmlToList('processed_data/aois/test_aois/o_book_dog (AOIs).xml')
+  left <- data.frame(aoi_name = "left", top_left_x = 0, 
+                     bottom_right_x = 555, top_left_y = 262,
+                     bottom_right_y = 788)
   
-  aoi_names <- c("right","left")
-  make_test_aoi = function(aoi_num) {
-    aois <- data.frame(Time = seq(0, TEST_LENGTH, (1 / FRAME_RATE))) %>%
-      mutate(aoi_name = aoi_names[aoi_num],
-             top_left_x = as.numeric(test_aoi_xml[aoi_num]$
-                                       DynamicAOI$Points[1]$Point$X),
-             top_left_y = as.numeric(test_aoi_xml[aoi_num]$
-                                       DynamicAOI$Points[1]$Point$Y),
-             bottom_right_x = as.numeric(test_aoi_xml[aoi_num]$
-                                           DynamicAOI$Points[2]$Point$X),
-             bottom_right_y = as.numeric(test_aoi_xml[aoi_num]$
-                                           DynamicAOI$Points[2]$Point$Y))
-  }
+  right <- data.frame(aoi_name = "right", top_left_x = 1125, 
+                      bottom_right_x = 1680, top_left_y = 262, 
+                      bottom_right_y = 788) 
   
-  bind_rows(lapply(1:length(aoi_names), make_test_aoi))
+  times <- data.frame(Time = seq(0, TEST_LENGTH, (1 / FRAME_RATE)))
+  
+  bind_rows(left_join(mutate(times, aoi_name = "left"), left),
+            left_join(mutate(times, aoi_name = "right"), right))
 }
 
-get_train_aois <- function(video) {
-   train_aoi_xml <- xmlToList(paste0("processed_data/aois/train_aois/",
-                                    video, "_aois.xml"))
-   
-   if(video == "reflook") {
-     train_aois <- train_aoi_xml[sapply(1:length(train_aoi_xml), function(x) {
-       str_count(train_aoi_xml[x]$DynamicAOI$Name,"M1_") > 0 | 
-         str_count(train_aoi_xml[x]$DynamicAOI$Name,"M2_") > 0 | 
-         str_count(train_aoi_xml[x]$DynamicAOI$Name,"D1_") > 0 | 
-         str_count(train_aoi_xml[x]$DynamicAOI$Name,"D2_") > 0}, simplify = TRUE)]
-   } else {
-   train_aois <- train_aoi_xml
-   }
+get_train_aois <- function(video, annotations) {
+  xmls <- list.files(paste0(path = 'processed_data/aois/train_aois/', 
+                            video, '/'), pattern = '*.xml',
+                     all.files = FALSE, full.names = TRUE)
+  
+  train_aois <- lapply(xmls, xmlToList)
    
   make_aoi_keyframe = function(aoi, key_frame) {
+
     key_frame_df <- aoi$KeyFrames[key_frame]$KeyFrame
     if(key_frame_df$Visible == "false") {
       data.frame(Time = as.numeric(key_frame_df$Timestamp)/1000000,
@@ -50,7 +39,7 @@ get_train_aois <- function(video) {
     }
   }
   
-  make_train_aoi <- function(aoi) {
+  make_train_aoi <- function(aoi, end_time = NA) {
     
     # Get the AOIs for each manually coded keyframe
     aoi_df <- bind_rows(lapply(1:length(aoi$KeyFrames), 
@@ -58,6 +47,12 @@ get_train_aois <- function(video) {
                                  make_aoi_keyframe(aoi, key_frame)})) %>%
       mutate(aoi_name = aoi$Name) %>%
       mutate(Time = floor(FRAME_RATE * Time) / FRAME_RATE)
+    
+    # Single keyframe
+    if(nrow(aoi_df) == 1) {
+      aoi_df[2,] = aoi_df[1,]
+      aoi_df[2,"Time"] = end_time
+    }
     
     # Find the times between keyframes
     all_times <- seq(min(aoi_df$Time),max(aoi_df$Time), 1 / FRAME_RATE)
@@ -81,17 +76,24 @@ get_train_aois <- function(video) {
                         bottom_right_y = as.numeric(NA))
     
     # Do constant interpolation to fill in AOIs for these between-times
-    all_pts <- bind_rows(aoi_df,fills) %>%
+    all_pts <- bind_rows(aoi_df, fills) %>%
       arrange(Time) 
     
     all_pts %>%
       mutate_each(funs(na.approx(., Time, method = "constant", rule = 2)),
-                  top_left_x,top_left_y,bottom_right_x,bottom_right_y)
+                  top_left_x, top_left_y, bottom_right_x, bottom_right_y)
   }
   
-  train_aoi_pts <- bind_rows(lapply(1:length(train_aois), function(aoi_num) {
-    make_train_aoi(train_aois[aoi_num]$DynamicAOI)})) %>%
-   # mutate(Time = floor(FRAME_RATE * Time)/FRAME_RATE) %>%
-    arrange(Time)
+  per_trial_pts <- function(trial) {
+    trial_aois <- train_aois[[trial]]
+    end_time <- annotations[trial,"end"]
+    
+    bind_rows(lapply(1:length(trial_aois), function(aoi_num) {
+      make_train_aoi(trial_aois[aoi_num]$DynamicAOI, end_time)})) %>%
+      arrange(Time) %>%
+      mutate(trial = trial)
+  }
+  
+  train_aoi_pts <- bind_rows(lapply(1:length(train_aois), per_trial_pts))
   
 }

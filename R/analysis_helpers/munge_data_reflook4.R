@@ -1,107 +1,97 @@
 ###############################################################################
 ############################# SPLIT TRAIN AND TEST ############################
 ###############################################################################
+TEST_START <- .5
+TEST_END <- 3.5
+TRAIN_START <- 0
+TRAIN_END <- 15
+
 #summarize across individual trials
-test.data.subj <- clean.test.data %>% 
+test_data_subj <- test_data %>% 
   filter(Time >=TEST_START, 
          Time <= TEST_END) %>%
-  group_by(type,age.grp,subj,trial)%>%
+  group_by(type, age_grp, subj, trial)%>%
   summarise(
-    prop = na.sum(aoi=="Target")/(na.sum(aoi=="Target")+
-                                         na.sum(aoi=="Competitor"))) %>%
-  summarise(prop = na.mean(prop))
+    prop = sum(aoi == "Target", na.rm = TRUE) / 
+      (sum(aoi == "Target", na.rm = TRUE)+
+         sum(aoi == "Competitor", na.rm = TRUE))) %>%
+  summarise(prop = mean(prop, na.rm = TRUE))
 
-train.data.subj <- clean.train.data %>%
-  group_by(object_type,window.type,age.grp,subj,trial) %>%
+train_data_subj <- train_data %>%
+  group_by(window_type, age, age_grp, subj, trial) %>%
+ # group_by(video, age_grp, subj, trial) %>%
   summarise(
-    Target = na.mean(aoi=="Target"),
-    Face = na.mean(aoi=="Face"),
-    Competitor = na.mean(aoi=="Competitor"),
-    TD = na.sum(aoi=="Target")/(na.sum(aoi=="Target")+na.sum(aoi=="Competitor"))) %>%
-  summarise_each(funs(na.mean),Target,Face,Competitor,TD) %>%
-  gather(aoi,prop,Target:TD) %>%
-  group_by(age.grp,window.type,aoi) 
+    Target = mean(aoi == "Target", na.rm = T),
+    Face = mean(aoi == "Face", na.rm = T),
+    Competitor = mean(aoi == "Competitor", na.rm = T),
+    TD = sum(aoi == "Target", na.rm = T)/
+      (sum(aoi == "Target", na.rm = T) + 
+         sum(aoi == "Competitor", na.rm = T))) %>%
+  summarise_each(funs(mean(., na.rm = T)), Target, Face, Competitor, TD) %>%
+  gather(aoi, prop, Target:TD) %>%
+  group_by(age_grp, window_type,aoi) 
+  #group_by(video, age_grp, window_type, aoi) 
 
-test.data.age <- multi_boot_standard(test.data.subj,column = "prop", na.rm = T)
 
 
-train.data.age <- multi_boot_standard(train.data.subj,column="prop", na.rm = T)
+test_data_age <- multi_boot_standard(test_data_subj, column = "prop", na.rm = T)
 
-# 
-# #Just nov trials
-train.data.novel <- filter(train.data, trial.num %in% c(1,2,4,5,7,8)) %>%
-  mutate(referent = ifelse(trial.num %in% c(1,4,8),"fep","toma"))
 
-test.data.novel <- filter(test.data,trial.type=="Novel") %>%
-  select(-trial.type) %>%
-   mutate(referent = ifelse(trial.num %in% c(2,3), "fep","toma")) %>%
-   group_by(referent,add=TRUE) %>%
-   summarise(prop = na.mean(prop))
-# 
-# 
-# #summarize by subject
-# train.data.subj <- train.data %>%
-#  # group_by(referent,add=TRUE) %>%
-#   summarise_each(funs(na.mean),(-trial.num)) %>%
-#   gather(aoi,prop,Target:TD)
-# 
-# train.data.subj.td <- train.data.subj %>%
-#   filter(aoi=="TD") %>%
-#   select(-aoi)
-# 
-# train.data.subj.t <- train.data.subj %>%
-#   filter(aoi=="Target") %>%
-#   select(-aoi)
-# 
-# train.data.subj.f <- train.data.subj %>%
-#   filter(aoi=="Face") %>%
-#   select(-aoi)
-# 
-# train.data.subj.td.and.f <- train.data.subj %>%
-#   filter(aoi=="Face" | aoi=="TD")
+train_data_age <- multi_boot_standard(train_data_subj, column="prop", na.rm = T)
 
-#aggregate by trial.type
-train.data.trial <- train.data.subj %>%
-  group_by(object_type,window.type,age.grp,aoi) %>%
-  multi_boot_standard(., column = "prop", na.rm = T)
+
+
+# # wide_form_test <- test_data_subj %>%
+# #   ungroup() %>%
+# #   select(video, subj, type, subj, prop) %>%
+# #   unite(test, video, type) %>%
+# #   spread(test, prop)
+# # 
+# # wide_form_train <- train_data_subj %>%
+# #   filter(aoi == "TD" | aoi == "Face") %>%
+# #   ungroup() %>%
+# #   select(video, subj,aoi, prop) %>%
+# #   unite(test, video, aoi) %>%
+# #   spread(test, prop)
+# 
+# wide_form_data <- left_join(wide_form_test, wide_form_train)
+# 
+# write_csv(wide_form_data,"wide_form_asd.csv")
+
 ###############################################################################
 ######################## SUBSET DATA FOR ANALYSES BELOW #######################
 ###############################################################################
 
-train.data.td <- train.data.trial %>%
-  filter(aoi=="TD") %>%
+train_data_td <- train_data_subj %>%
+  filter(aoi == "TD") %>%
   select(-aoi)
 
-train.data.t <- train.data.trial %>%
-  filter(aoi=="Target") %>%
+train_data_t <- train_data_subj %>%
+  filter(aoi == "Target") %>%
   select(-aoi)
 
-train.data.notd <- filter(train.data.trial,aoi != "TD")
+train_data_notd <- train_data_subj %>%
+  filter(aoi != "TD") %>%
+  select(-aoi)
 
-test.data.trial$window.type <- "test"
+test_data_subj$window_type <- "test"
 
-preflook.data <- bind_rows(train.data.td,test.data.trial)
+preflook_data <- bind_rows(train_data_td, test_data_subj)
 
-
-ttest.data <- test.data.subj %>%
-  mutate(window.type = as.character(trial.type)) %>%
-  select(-trial.type)
-
-ttest.data = bind_rows(ttest.data,
-                   train.data.subj.td %>%
-                     mutate(window.type = as.character(window.type)) %>%
-                     select(-trial.type)) %>%
-  mutate(window.type = factor(window.type,
-                              levels=c(levels(train.data.subj$window.type),
-                                       "Familiar","Novel")))
 
 #Demographic data
-demo.data <- test.data.subj %>%
-  group_by(age.grp,type) %>%
+demo_data <- test_data %>%
+  distinct(subj) %>%
+  group_by(age_grp) %>%
   summarise(n = n(),
-            num.girls = sum(gender=="Female")) %>%
-  filter(trial.type=="Familiar") %>%
-  select(-trial.type)
+            num_girls = sum(gender=="Female",na.rm=T))
+
+
+
+
+
+
+%>%
 # 
 # quartz(width=5,height=4)
 # ggplot(filter(test.data.subj,age.grp == "ASD"), aes(x=age))+

@@ -1,0 +1,454 @@
+---
+title: Developmental changes in the speed of social attention in early word 
+  learning -- Experiment 1
+author: Daniel Yurovsky, Anna Wade, Allison M Krauss, Grace w. Gengoux, 
+  Antonio Hardan, & Michael C Frank
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    highlight: tango
+    theme: spacelab
+---
+```{r setup, echo = FALSE}
+library(knitr)
+opts_chunk$set(message = FALSE, warning = FALSE, cache = TRUE, fig.align = "center")
+```
+
+```{r, cache = FALSE, echo = FALSE}
+library(directlabels)
+library(dplyr)
+library(xtable)
+library(tidyr)
+library(magrittr)
+library(readr)
+library(langcog)
+library(ggplot2)
+library(zoo)
+library(purrr)
+```
+
+Set constants
+```{r CONSTANTS}
+#CONSTANTS
+TEST_START <- .5
+TEST_END <- 4
+LEARN_START <- 0
+LEARN_END <- 15
+
+COLORS <- c("#c6dbef","#6baed6","#2171b5","#08306b","#f16913","#6a51a3")
+
+```
+
+Load data
+```{r load_data}
+#read looking data
+raw_child_learn_data <- fread("processed_data/csvs/reflook/child/train_data.csv") %>%
+  filter(age >= 1 & age < 5) %>%
+  mutate(age_group = factor(floor(age)),
+         group = "child")
+
+raw_child_test_data <- fread("processed_data/csvs/reflook/child/test_data.csv") %>%
+  filter(age >= 1 & age < 5) %>%
+  mutate(age_group = factor(floor(age)),
+         group = "child")
+
+raw_adult_learn_data <- fread("processed_data/csvs/reflook/adult/train_data.csv") %>%
+  mutate(age = NA, age_group = "adult", group = "adult") 
+
+raw_adult_test_data <- fread("processed_data/csvs/reflook/adult/test_data.csv") %>%
+  mutate(age = NA,  age_group = "adult", group = "adult") 
+
+raw_ASD_learn_data <- fread("processed_data/csvs/reflook/ASD/train_data.csv") %>%
+  filter(age <= 8) %>%
+  mutate(age_group = "ASD", group = "ASD") 
+
+raw_ASD_test_data <- fread("processed_data/csvs/reflook/ASD/test_data.csv") %>%
+  filter(age <= 8) %>%
+  mutate(age_group = "ASD", group = "ASD")
+```
+
+Exclude children as necessary
+```{r exclusions}
+# Count starting participants
+start_ps <- raw_child_test_data %>%
+  group_by(age_group) %>%
+  summarise(initial_n = length(unique(subj)))
+  
+# Count children with <75% exposure to English
+dropped_english <- raw_child_test_data %>%
+  filter(english < 4 | is.na(english)) %>%
+  summarise(low_english = (length(unique(subj))))
+
+# Count children who were born before the 37th week of pregnancy
+dropped_premie <- raw_child_test_data %>%
+  filter(premie == 2 | is.na(premie)) %>%
+  summarise(premature = (length(unique(subj))))
+
+# Exclude children
+kept_ps <- raw_child_test_data %>%
+  filter(english >= 4, premie != 2, !is.na(premie), !is.na(english)) 
+
+kable(bind_cols(dropped_english, dropped_premie),
+      caption = "Children matching exclusion criteria")
+
+# Count the number of girls in each age group
+count_girls <- kept_ps %>%
+  group_by(age_group, gender) %>%
+  summarise(female = length(unique(subj))) %>%
+  filter(gender == "Female") %>%
+  select(-gender)
+
+# Count remaining children in each group
+count_ps <- kept_ps %>%
+  group_by(age_group) %>%
+  summarise(final_n = length(unique(subj))) %>%
+  left_join(count_girls)
+  
+final_ps <- left_join(start_ps, count_ps) %>%  
+  arrange(age_group)
+
+kable(final_ps, caption = "Final participants in each age group")
+
+kept_child_learn_data <- raw_child_learn_data %>%
+  filter(subj %in% unique(kept_ps$subj)) %>%
+  select(-gender,-english,-premie)
+
+kept_child_test_data <- raw_child_test_data %>%
+  filter(subj %in% unique(kept_ps$subj)) %>%
+  select(-gender,-english,-premie)
+
+# Get all participants together
+raw_test_data <- bind_rows(kept_child_test_data, raw_adult_test_data,
+                           raw_ASD_test_data) %>%
+         mutate(age_group = factor(age_group, levels = c("1", "2", "3", "4", 
+                                                         "adult", "ASD")),
+                group = factor(group, levels = c("child", "adult", "ASD")),
+                subj = paste0(group, "_", subj))
+
+raw_learn_data <- bind_rows(kept_child_learn_data, raw_adult_learn_data,
+                            raw_ASD_learn_data) %>%
+    mutate(window_type = factor(window_type, 
+                              levels = c("baseline","name_look","look_name2",
+                                         "name2_reach","reach_contact",
+                                         "contact_end")),
+           age_group = factor(age_group, levels = c("1", "2", "3", "4", 
+                                                         "adult", "ASD")),
+           group = factor(group, levels = c("child", "adult", "ASD")),
+           subj = paste0(group, "_", subj))
+```
+
+Exclude trials with >50% missing data, exclude participants with > 50% missing trials
+```{r missing_data}
+na_out_missing <- function(data, prop = .5) {
+  
+  max_trials <- length(unique(data$trial))
+  
+  na_props <- data %>%
+    group_by(subj, trial) %>%
+    summarise(na_prop = sum(is.na(aoi)) / length(aoi))
+  
+  complete_data <- na_props %>%
+    filter(na_prop <= prop) %>%
+    select(-na_prop) %>%
+    left_join(data)
+  
+  missing_data <- na_props %>%
+    filter(na_prop > prop) %>%
+    select(-na_prop) %>%
+    left_join(mutate(data, aoi = NA))
+  
+  missing_trials <- missing_data %>%
+    group_by(subj) %>%
+    summarise(num_trials = length(unique(trial))) %>%
+    filter(num_trials > (max_trials * prop))
+  
+  together_data <- bind_rows(complete_data,missing_data)
+  
+  drop_subjs <- together_data %>%
+    filter(subj %in% missing_trials$subj) %>%
+    mutate(aoi = NA)
+  
+  bind_rows(filter(together_data, !subj %in% missing_trials$subj),
+            drop_subjs) %>%
+    arrange(subj, trial,Time) 
+}
+
+test_data <- na_out_missing(raw_test_data) 
+learn_data <- na_out_missing(raw_learn_data)
+
+na_exclusions <- function(data) {
+  
+  na_data <- data %>%
+    group_by(group, subj, trial) %>%
+    summarise(na_trial = (sum(is.na(aoi)/length(aoi))) == 1) %>%
+    group_by(group, subj) %>%
+    summarise(na_trial = mean(na_trial)) %>%
+    mutate(na_subj = na_trial == 1)
+
+  left_join(summarise(na_data, na_subj = mean(na_subj)),
+            summarise(filter(na_data, !na_subj), na_trial = mean(na_trial)))
+}
+
+na_test_exclusions <- na_exclusions(test_data)
+na_learn_exclusions <- na_exclusions(learn_data)
+
+kable(na_test_exclusions)
+kable(na_learn_exclusions)
+```
+
+Test timecourse data
+```{r timecourse_data}
+#summarize across individual trials
+test_data_time <- test_data %>% 
+  group_by(group, age_group, type, Time, subj) %>%
+  summarise(correct = sum(aoi == "Target", na.rm = TRUE) / 
+      (sum(aoi == "Target", na.rm = TRUE)+
+         sum(aoi == "Competitor", na.rm = TRUE))) %>%
+  summarise_each(funs(mean(., na.rm = T), sem(., na.rm = T)),correct) %>%
+  rename(correct = mean) %>%
+  group_by(group, age_group, type, Time) %>%
+  mutate(roll_mean = rollapply(correct, 15, 
+                               FUN = function(x) {mean(x, na.rm = T)},
+                               partial = TRUE),
+         roll_sem = rollapply(sem, 15, 
+                              FUN = function(x) {mean(x, na.rm = T)},
+                              partial = TRUE)) %>%
+  rename(mean = correct)
+```
+
+Plot test timecourses
+```{r test_timecourses, fig.width = 8, fig.height= 3.5}
+ggplot(filter(test_data_time, Time == round(Time, 2)), 
+       aes(x = Time, y = roll_mean, colour = age_group, 
+           fill = age_group, 
+           label = age_group))+
+  facet_grid(type ~ . ) +
+  geom_ribbon(aes(ymin = roll_mean - roll_sem,
+                      ymax = roll_mean + roll_sem),
+                  size=0, alpha = .5)+
+  geom_line()+
+  geom_hline(aes(yintercept = .5), lty= "dashed")  +
+#   geom_rect(aes(xmin = TEST_START, xmax = TEST_END, ymin = -Inf, ymax = Inf),
+#             alpha = .01, fill = "lightgray", colour = NA) +
+  geom_vline(aes(xintercept = TEST_START), lty= "dashed", color = "gray") + 
+   geom_vline(aes(xintercept = TEST_END), lty= "dashed", color = "gray") + 
+  scale_x_continuous(name = "Time", limits = c(-2, 4.5), breaks = seq(-2,4.5,1))+ 
+  geom_vline(aes(xintercept = 0), lty = "dashed") +
+  scale_y_continuous(limits = c(0,1), breaks=seq(0,1,.1),
+                     name = "Prop. correct looks") +
+  theme_bw(base_size = 16) + 
+  theme(panel.grid = element_blank(), legend.position = "none",
+        axis.title.x=element_text(vjust=-.5), axis.title.y=element_text(vjust=1)) +
+  scale_color_manual(values = COLORS) +
+  scale_fill_manual(values = COLORS) +
+  geom_dl(method = list(dl.trans(x=x +.2), "last.qp", cex=1))
+```
+
+Munge data to compute looking proportions
+```{r munge_data}
+test_data_subj <- test_data %>% 
+  filter(Time >=TEST_START, 
+         Time <= TEST_END) %>%
+  group_by(group, age_group, age, subj, type, trial) %>%
+  summarise(
+    prop = sum(aoi == "Target", na.rm = TRUE) / 
+      (sum(aoi == "Target", na.rm = TRUE)+
+         sum(aoi == "Competitor", na.rm = TRUE))) %>%
+  summarise(prop = mean(prop, na.rm = TRUE))
+
+learn_data_subj <- learn_data %>%
+  group_by(window_type, group, age_group, age, subj, trial) %>%
+  summarise(
+    prop = sum(aoi == "Target", na.rm = T)/
+      (sum(aoi == "Target", na.rm = T) + 
+         sum(aoi == "Competitor", na.rm = T) + 
+         sum(aoi == "Face"))) %>%
+  summarise(prop = mean(prop, na.rm = TRUE))
+
+test_data_age_group <- test_data_subj %>%
+  group_by(group,age_group, type) %>%
+  multi_boot_standard("prop", na.rm = TRUE)
+
+learn_data_age_group <- learn_data_subj %>%
+  group_by(group, age_group, window_type) %>%
+  multi_boot_standard("prop", na.rm = TRUE)
+
+```
+
+Test plot
+```{r test_dot_plot, fig.width = 6, fig.height = 4}
+ggplot(test_data_age_group, 
+       aes(x = age_group, y = mean, colour = type, label = type))+
+  geom_pointrange(aes(ymin = ci_lower,
+                      ymax = ci_upper),
+                  size=.8, position = position_dodge(.1))+
+  geom_hline(aes(yintercept=.5),lty=2)  +
+  geom_line(aes(group=interaction(group,type))) +
+  scale_x_discrete(name = "Participant group")+ 
+  expand_limits(x = c(.5, 7.5)) +
+  scale_y_continuous(limits = c(.4,1), breaks=seq(.4,1,.1),
+                     name = "Prop. Looks to Target") +
+  theme_bw(base_size=18) + 
+    theme(legend.position="none", legend.title=element_blank(),
+        panel.grid=element_blank(), axis.title.x=element_text(vjust=-.5),
+        axis.title.y=element_text(vjust=1)) +
+  geom_dl(method = list(dl.trans(x=x +.3), "last.qp", cex=1.25)) +
+  scale_color_brewer(palette = "Set1") 
+```
+  
+Learning plot
+```{r learn_dot_plot}
+plotting_data <- learn_data_age_group %>%
+  rowwise() %>%
+  mutate(window_num = which(levels(window_type) == window_type)) %>%
+  ungroup()
+
+quartz(width=7, height=3, title = "Learning")
+ggplot(plotting_data, aes(x = window_num, y = mean, colour = age_group, 
+                               group = age_group, label = age_group)) +
+  geom_pointrange(aes(ymin = ci_lower,
+                      ymax = ci_upper),
+                  position = position_dodge(.1),
+                  size=.8)+
+  geom_line() +
+  scale_x_continuous(name = "",breaks=seq(.5,6.5),limits=c(.5,6.5),
+                     labels=c("Baseline", "Name", "Look", "Name 2", 
+                              "Reach", "Contact", "End"))+
+  expand_limits(x = 10) +
+  scale_y_continuous(limits = c(0,1), breaks = seq(0, 1, .1),
+                     name = "Prop. Looks to Target") +
+  theme_bw(base_size = 16) + 
+  theme(legend.position=c(.1,.6), legend.title = element_blank(),
+        panel.grid=element_blank()) +
+  scale_color_manual(values = COLORS, 
+                     guide = guide_legend(reverse=TRUE)) 
+```
+  
+```{r model_setup}
+dependent <- test_data_subj %>%
+  spread(type, prop)
+
+independent <- learn_data_subj %>%
+  spread(window_type, prop)
+
+model_data <- left_join(learn_data_subj, dependent)
+
+coeff_table <- function(model) {
+  coeffs <- as.data.frame(summary(model)$coefficients)
+  coeffs$Predictor <- rownames(coeffs)
+  return(coeffs)
+}
+
+make_cor_df <- function(test_out) {
+  data.frame(Estimate = test_out$estimate, 
+             r = test_out$statistic, 
+             df = test_out$parameter, 
+             p_val = test_out$p.value,
+             row.names = NULL)
+}
+```
+
+```{r fit_models}
+# Age differences by window_type
+learn_corrs <- learn_data_subj %>%
+  filter(group != "adult") %>%
+  ungroup() %>%
+  mutate(group = factor(group)) %>%
+  split(paste(.$group, .$window_type, sep = " ")) %>%
+  map(~cor.test(.$age, .$prop, use = "complete")) %>%
+  map(make_cor_df) %>%
+  bind_rows(.id = "id") %>%
+  separate(id, c("group", "window_type"), sep = " ")
+kable(learn_corrs)
+
+
+# Test null models differences by window_type
+age_test_nulls <- test_data_subj %>%
+  split(paste(.$group, .$age_group, .$type, sep = " ")) %>%
+  map(~lm((prop - .5) ~ 1, data = .)) %>%
+  map(function(x) as.data.frame(summary(x)$coefficients)[1,]) %>%
+  bind_rows(.id = "id") %>%
+  separate(id, c("group", "age_group", "type"), sep = " ")
+
+kable(age_test_nulls)
+
+#Child tests
+child_age_test_types <- lm(prop ~ type * age, data = filter(test_data_subj,
+                                                      group == "child"))
+
+
+kable(coeff_table(child_age_test_types))
+
+
+asd_age_test_types <- lm(prop ~ type + age, data = filter(test_data_subj,
+                                                      group == "ASD"))
+
+
+kable(coeff_table(asd_age_test_types))
+
+
+# Age differences by window_type
+test_corrs <- model_data %>%
+  split(paste(.$group, .$window_type, sep = " ")) %>%
+  map(~cor.test(.$Novel, .$prop, use = "complete")) %>%
+  map(make_cor_df) %>%
+  bind_rows(.id = "id") %>%
+  separate(id, c("group", "window_type"), sep = " ")
+kable(test_corrs)
+
+resids <- model_data %>%
+  filter(group != "adult", !is.na(Novel)) %>%
+  ungroup() %>%
+  mutate(group = factor(group)) %>%
+  spread(window_type, prop) %>%
+  split(.$group) %>%
+  map(~lm(Novel ~ age, data = .)$residuals) %>%
+  unlist(., use.names = FALSE)
+
+resid_data <- model_data %>%
+  filter(group != "adult", !is.na(Novel)) %>%
+  ungroup() %>%
+  mutate(group = factor(group)) %>%
+  spread(window_type, prop) %>%
+  mutate(resid = resids)
+
+adult_wideform <- model_data %>%
+  filter(group == "adult", !is.na(Novel)) %>%
+  spread(window_type, prop) %>%
+  rename(resid = Novel)
+
+resid_models <- resid_data %>%
+  bind_rows(adult_wideform) %>%
+  split(.$group) %>%
+  map(~lm(resid ~ look_name2 + reach_contact + Familiar, data = .)) %>%
+  map(coeff_table) %>%
+  bind_rows(.id = "group")
+
+kable(resid_models)
+```
+
+```{r correlations}
+# cor_data <- left_join(spread(test_data_subj, type, prop),
+#                       spreadlearn_data_subj, window_type, prop)) %>%
+#   filter(group != "adult") %>%
+#   gather(predictor, value, Familiar, age, baseline:contact_end) %>%
+#   filter(predictor %in% c("Familiar", "age", "look_name2"))
+# 
+# 
+# cor_data %>%
+#   group_by(group, predictor) %>%
+#   summarise(correlation = cor(value, Novel, use = "complete"))
+# 
+# ggplot(filter(cor_data, predictor %in% c("Familiar", "age", "look_name2")), 
+#        aes(x = value, y = Novel, colour = predictor))+
+#   facet_grid(group ~ predictor, scales = "free") +
+#   geom_smooth(method = "lm", size = 1.5) +
+#   geom_point(size = 2)+
+#  # scale_x_continuous(name = "Predictor",limits = c(0, 1.2)) +
+#   scale_y_continuous(name = "Test looking",limits = c(0, 1.2)) +
+#   theme_bw(base_size=16) + 
+#   theme(legend.position="none", legend.title=element_blank(),
+#         panel.grid=element_blank(), axis.title.x=element_text(vjust=-.5),
+#         axis.title.y=element_text(vjust=1)) +
+#   scale_color_brewer(palette = "Set1")
+# ```
