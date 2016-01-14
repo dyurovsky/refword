@@ -1,12 +1,22 @@
 ---
-title: Measuring the development of social information processing longitudinally
-author: Daniel Yurovsky, Rose Schneider, & Michael C Frank
+title: Developmental changes in the speed of social attention in early word 
+  learning -- Experiment 3
+author: Daniel Yurovsky, Anna Wade, Allison M Krauss, Grace w. Gengoux, 
+  Antonio Hardan, & Michael C Frank
 date: "`r Sys.Date()`"
 output:
   html_document:
     highlight: tango
     theme: spacelab
 ---
+
+<style type="text/css">
+.table {
+
+    width: 40%;
+}
+</style>
+
 ```{r setup, echo = FALSE}
 library(knitr)
 opts_chunk$set(message = FALSE, warning = FALSE, cache = TRUE, fig.align = "center")
@@ -24,6 +34,7 @@ library(langcog)
 library(ggplot2)
 library(zoo)
 library(purrr)
+library(broom)
 library(lme4)
 library(lmerTest)
 ```
@@ -33,23 +44,28 @@ library(lmerTest)
 TEST_START <- .5
 TEST_END <- 4.5
 LEARN_START <- 0
-LEARN_END_LONG <- 6
-LEARN_END_SHORT <- 1
+LEARN_END <- 9
 
 COLORS <- c("#c6dbef","#6baed6","#2171b5","#08306b","#f16913","#6a51a3")
+
+#raw_learn_data %>% group_by(Stimulus) %>% summarise(max_time = max(Time))
 ```
 
 Load data
 ```{r load_data}
 raw_learn_data <- read_csv(paste0("processed_data/csvs/soc_word/child/train_data.csv")) %>%
-  filter(age >= 1 & age < 5, trial <= 6) %>%
+  filter(age >= 1 & age < 5) %>%
   mutate(age_group = factor(floor(age))) %>%
-  mutate(group = "child")
+  mutate(group = "child") %>%
+  mutate(object_type = factor(object_type, levels = c("extended", "brief"),
+         labels = c("Extended Hold", "Brief Look")))
 
 raw_test_data <- read_csv(paste0("processed_data/csvs/soc_word/child/test_data.csv")) %>%
-  filter(age >= 1 & age < 5, trial <= 10) %>%
+  filter(age >= 1 & age < 5) %>%
   mutate(age_group = factor(floor(age))) %>%
-  mutate(group = "child")
+  mutate(group = "child") %>%
+  mutate(object_type = factor(object_type, levels = c("extended", "familiar", "brief"),
+         labels = c("Extended Hold", "Familiar", "Brief Look")))
 ```
 
 Exclude children as necessary
@@ -57,7 +73,8 @@ Exclude children as necessary
 # Count starting participants
 start_ps <- raw_test_data %>%
   group_by(age_group) %>%
-  summarise(initial_n = length(unique(subj)))
+  distinct(subj) %>%
+  summarise(initial_n = n())
   
 # Count children with <75% exposure to English
 dropped_english <- raw_test_data %>%
@@ -65,46 +82,48 @@ dropped_english <- raw_test_data %>%
   summarise(low_english = (length(unique(subj))))
 
 # Count children who were born before the 37th week of pregnancy
-dropped_premie <- raw_test_data %>%
+dropped_premature <- raw_test_data %>%
+  distinct(subj) %>%
   filter(premature | is.na(premature)) %>%
-  summarise(premature = (length(unique(subj))))
+  summarise(premature = n())
 
 # Exclude children
 kept_ps <- raw_test_data %>%
- # filter(english >= 75, !is.na(english)) 
   filter(english >= 75, !premature, !is.na(premature), !is.na(english)) 
 
-kable(bind_cols(dropped_english, dropped_premie),
+kable(bind_cols(dropped_english, dropped_premature),
       caption = "Children matching exclusion criteria")
 
 # Count the number of girls in each age group
 count_girls <- kept_ps %>%
   group_by(age_group, gender) %>%
-  summarise(female = length(unique(subj))) %>%
+  distinct(subj) %>%
   filter(gender == "female") %>%
+  summarise(female = n()) %>%
   select(-gender)
 
 # Count remaining children in each group
 count_ps <- kept_ps %>%
   group_by(age_group) %>%
-  summarise(final_n = length(unique(subj))) %>%
+  distinct(subj) %>%
+  summarise(final_n = n(), mean_age = mean(age), min_age = min(age),
+            max_age = max(age)) %>%
   left_join(count_girls)
-  
-final_ps <- left_join(start_ps, count_ps) %>%  
-  arrange(age_group)
+
+final_ps <- left_join(start_ps, count_ps)
 
 kable(final_ps, caption = "Final participants in each age group")
 
 kept_learn_data <- raw_learn_data %>%
   filter(subj %in% unique(kept_ps$subj)) %>%
-  select(-gender,-english,-premature)
+  select(-gender, -english, -premature)
 
 kept_test_data <- raw_test_data %>%
   filter(subj %in% unique(kept_ps$subj)) %>%
-  select(-gender,-english,-premature)
+  select(-gender, -english, -premature)
 ```
 
-Exclusions
+Exclude trials with >50% missing data, exclude participants with > 50% missing trials
 ```{r missing_data}
 na_out_missing <- function(data, prop = .5) {
   
@@ -140,9 +159,9 @@ na_out_missing <- function(data, prop = .5) {
     arrange(subj, trial,Time) 
 }
 
-test_data <- na_out_missing(kept_test_data)
-learn_data <- na_out_missing(kept_learn_data)
-
+test_data <- na_out_missing(raw_test_data) 
+learn_data <- na_out_missing(raw_learn_data) %>%
+  filter(Time >=LEARN_START, Time <= LEARN_END)
 
 na_exclusions <- function(data) {
   
@@ -169,7 +188,7 @@ Test timecourse data
 ```{r timecourse_data}
 #summarize across individual trials
 test_data_time <- test_data %>% 
-  group_by(age_group, object_type, Time, subj) %>%
+  group_by(age_group, test_type, object_type, Time, subj) %>%
   summarise(correct = sum(aoi == "Target", na.rm = TRUE) / 
       (sum(aoi == "Target", na.rm = TRUE)+
          sum(aoi == "Competitor", na.rm = TRUE))) %>%
@@ -186,12 +205,12 @@ test_data_time <- test_data %>%
 ```
 
 Plot test timecourses
-```{r test_timecourses, fig.width = 8, fig.height = 3.5}
-ggplot(filter(test_data_time, Time == round(Time, 1)), 
+```{r test_timecourses, fig.width = 8, fig.height = 7}
+ggplot(filter(test_data_time, Time == round(Time, 1), test_type == "NF"), 
        aes(x = Time, y = roll_mean, colour = age_group, 
            fill = age_group, 
            label = age_group))+
-  facet_grid(object_type ~ . ) +
+  facet_grid(object_type ~ .) +
   geom_ribbon(aes(ymin = roll_mean - roll_sem,
                       ymax = roll_mean + roll_sem),
                   size=0, alpha = .5)+
@@ -247,9 +266,8 @@ ggplot(filter(learn_data_time, Time == round(Time, 1)),
 #   geom_rect(aes(xmin = TEST_START, xmax = TEST_END, ymin = -Inf, ymax = Inf),
 #             alpha = .01, fill = "lightgray", colour = NA) +
   geom_vline(aes(xintercept = LEARN_START), lty= "dashed", color = "gray") + 
-  geom_vline(aes(xintercept = LEARN_END_SHORT), lty= "dashed", color = "gray") + 
-  geom_vline(aes(xintercept = LEARN_END_LONG), lty= "dashed", color = "gray") + 
-  scale_x_continuous(name = "Time", limits = c(-1, 6.5), breaks = seq(-1,6.5,1))+ 
+  geom_vline(aes(xintercept = LEARN_END), lty= "dashed", color = "gray") + 
+  scale_x_continuous(name = "Time", limits = c(-1, 9.5), breaks = seq(-1,9.5,1))+ 
   geom_vline(aes(xintercept = 0), lty = "dashed") +
   scale_y_continuous(limits = c(0,1), breaks=seq(0,1,.1),
                      name = "Prop. correct looks") +
@@ -264,27 +282,16 @@ ggplot(filter(learn_data_time, Time == round(Time, 1)),
 Munge data to compute looking proportions
 ```{r munge_data}
 test_data_subj <- test_data %>% 
-  filter(Time >=TEST_START, 
+  filter(Time >= TEST_START, 
          Time <= TEST_END) %>%
-  group_by(age_group, age, subj, object_type, trial) %>%
+  group_by(age_group, age, subj, test_type, object_type, trial) %>%
   summarise(
     prop = sum(aoi == "Target", na.rm = TRUE) / 
       (sum(aoi == "Target", na.rm = TRUE)+
          sum(aoi == "Competitor", na.rm = TRUE))) %>%
   summarise(prop = mean(prop, na.rm = TRUE))
 
-learn_data_short_subj <- learn_data %>%
-   filter(Time >=LEARN_START, Time <= LEARN_END_SHORT) %>%
-  group_by(age_group, object_type, age, subj, trial) %>%
-  summarise(
-    prop = sum(aoi == "Target", na.rm = T)/
-      (sum(aoi == "Target", na.rm = T) + 
-         sum(aoi == "Competitor", na.rm = T) + 
-         sum(aoi == "Face", na.rm = T))) %>%
-  summarise(prop = mean(prop, na.rm = TRUE))
-
-learn_data_long_subj <- learn_data %>%
-   filter(Time >=LEARN_START, Time <= LEARN_END_LONG) %>%
+learn_data_subj <- learn_data %>%
   group_by(age_group, object_type, age, subj, trial) %>%
   summarise(
     prop = sum(aoi == "Target", na.rm = T)/
@@ -294,71 +301,77 @@ learn_data_long_subj <- learn_data %>%
   summarise(prop = mean(prop, na.rm = TRUE))
 
 test_data_age_group <- test_data_subj %>%
+  group_by(age_group, test_type, object_type) %>%
+  multi_boot_standard("prop", na.rm = TRUE)
+
+kable(test_data_age_group)
+
+learn_data_age_group <- learn_data_subj %>%
   group_by(age_group, object_type) %>%
   multi_boot_standard("prop", na.rm = TRUE)
 
-learn_data_short_age_group <- learn_data_short_subj %>%
-  group_by(age_group, object_type) %>%
-  multi_boot_standard("prop", na.rm = TRUE)
-
-learn_data_long_age_group <- learn_data_long_subj %>%
-  group_by(age_group, object_type) %>%
-  multi_boot_standard("prop", na.rm = TRUE)
+kable(learn_data_age_group)
 
 ```
 
 Test plot
-```{r test_dot_plot}
-ggplot(test_data_age_group, 
+```{r test_dot_plot, fig.width = 5.5, fig.height = 4}
+quartz(width = 5.5, height = 4)
+ggplot(filter(test_data_age_group, test_type == "NF"),
        aes(x = age_group, y = mean, colour = object_type, label = object_type,
            group = object_type))+
+  #facet_grid(~ test_type) + 
   geom_pointrange(aes(ymin = ci_lower,
                       ymax = ci_upper),
-                  size=.8, position = position_dodge(.1))+
+                  size=.7, position = position_dodge(.1))+
   geom_hline(aes(yintercept=.5),lty=2)  +
-  geom_line() +
-  scale_x_discrete(name = "Participant group")+ 
-  scale_y_continuous(limits = c(.1,1), breaks=seq(.2,1,.1),
-                     name = "Prop. Looks to Target vs. Competitor") +
-  theme_bw(base_size=18) + 
-    theme(legend.position="none", legend.title=element_blank(),
+  geom_line(position = position_dodge(.1)) +
+  scale_x_discrete(name = "Age (years)") + 
+  scale_y_continuous(limits = c(.4,.9), breaks=seq(.4,.9,.1),
+                    name = "Prop. Looks to Target") +
+  theme_bw(base_size=16) + 
+  expand_limits(x = 5.5) +
+  theme(legend.position="none", legend.title=element_blank(),
         panel.grid=element_blank(), axis.title.x=element_text(vjust=-.5),
         axis.title.y=element_text(vjust=1)) +
-  geom_dl(method = list(dl.trans(x=x +.2), "last.qp", cex=1)) +
+  geom_dl(method = list(dl.trans(x=x +.3), "last.qp", cex=1)) +
+  scale_color_brewer(palette = "Set1") 
+
+quartz(width = 5.5, height = 4)
+ggplot(filter(test_data_age_group, test_type == "NN"),
+       aes(x = age_group, y = mean, colour = object_type, label = object_type,
+           group = object_type))+
+  #facet_grid(~ test_type) + 
+  geom_pointrange(aes(ymin = ci_lower,
+                      ymax = ci_upper),
+                  size=.7, position = position_dodge(.1))+
+  geom_hline(aes(yintercept=.5),lty=2)  +
+  geom_line(position = position_dodge(.1)) +
+  scale_x_discrete(name = "Age (years)") + 
+  scale_y_continuous(limits = c(.3,.9), breaks=seq(.4,.9,.1),
+                    name = "Prop. Looks to Target") +
+  theme_bw(base_size=16) + 
+  expand_limits(x = 5.5) +
+  theme(legend.position="none", legend.title=element_blank(),
+        panel.grid=element_blank(), axis.title.x=element_text(vjust=-.5),
+        axis.title.y=element_text(vjust=1)) +
+  geom_dl(method = list(dl.trans(x=x +.3), "last.qp", cex=1)) +
   scale_color_brewer(palette = "Set1") 
 ```
 
 Learn plots
 ```{r learn_dot_plot}
-ggplot(learn_data_short_age_group, 
+ggplot(learn_data_age_group, 
        aes(x = age_group, y = mean, colour = object_type, label = object_type,
            group = object_type))+
   geom_pointrange(aes(ymin = ci_lower,
                       ymax = ci_upper),
                   size=.8, position = position_dodge(.1))+
   geom_hline(aes(yintercept=.5),lty=2)  +
-  geom_line() +
+  geom_line(position = position_dodge(.1)) +
   scale_x_discrete(name = "Participant group")+ 
-  scale_y_continuous(limits = c(0,1), breaks=seq(0,1,.1),
-                     name = "Prop. Looks to Target vs. Competitor") +
-  theme_bw(base_size=18) + 
-    theme(legend.position="none", legend.title=element_blank(),
-        panel.grid=element_blank(), axis.title.x=element_text(vjust=-.5),
-        axis.title.y=element_text(vjust=1)) +
-  geom_dl(method = list(dl.trans(x=x +.2), "last.qp", cex=1)) +
-  scale_color_brewer(palette = "Set1") 
-
-ggplot(learn_data_long_age_group, 
-       aes(x = age_group, y = mean, colour = object_type, label = object_type,
-           group = object_type))+
-  geom_pointrange(aes(ymin = ci_lower,
-                      ymax = ci_upper),
-                  size=.8, position = position_dodge(.1))+
-  geom_hline(aes(yintercept=.5),lty=2)  +
-  geom_line() +
-  scale_x_discrete(name = "Participant group")+ 
-  scale_y_continuous(limits = c(0,1), breaks=seq(0,1,.1),
-                     name = "Prop. Looks to Target vs. Competitor") +
+#   scale_y_continuous(limits = c(0,1), breaks=seq(0,1,.1),
+#                      name = "Prop. Looks to Target vs. Competitor") +
   theme_bw(base_size=18) + 
     theme(legend.position="none", legend.title=element_blank(),
         panel.grid=element_blank(), axis.title.x=element_text(vjust=-.5),
@@ -369,73 +382,123 @@ ggplot(learn_data_long_age_group,
 
   
 ```{r model_setup}
+familiars <- test_data_subj %>%
+  filter(object_type == "Familiar") %>%
+  summarise(Familiar = mean(prop, na.rm = T)) %>%
+  select(-test_type)
+
 dependent <- test_data_subj %>%
+  filter(object_type != "Familiar") %>%
   spread(object_type, prop) %>%
-  gather(object_type, test, brief:extended)
+  gather(object_type, test, c(`Brief Look`, `Extended Hold`)) %>%
+  left_join(familiars)
 
-independent <- left_join(rename(learn_data_short_subj, short = prop),
-                         rename(learn_data_long_subj, long = prop)) %>%
-  gather(window_type, prop, short, long)
-
-model_data <- left_join(independent, dependent)
-  
-coeff_table <- function(model) {
-  coeffs <- as.data.frame(summary(model)$coefficients)
-  coeffs$Predictor <- rownames(coeffs)
-  return(coeffs)
-}
-
-make_cor_df <- function(test_out) {
-  data.frame(Estimate = test_out$estimate, 
-             r = test_out$statistic, 
-             df = test_out$parameter, 
-             p_val = test_out$p.value,
-             row.names = NULL)
-}
+model_data <- left_join(dependent, learn_data_subj)
 ```
 
 
 
 ```{r models}
-# Age differences by window_type
-learn_corrs <- independent %>%
-  split(paste(.$object_type, .$window_type, sep = " ")) %>%
-  map(~cor.test(.$age, .$prop, use = "complete")) %>%
-  map(make_cor_df) %>%
-  bind_rows(.id = "id") %>%
-  separate(id, c("group", "window_type"), sep = " ")
+# Age differences during learning
+learn_corrs <- learn_data_subj %>%
+  split(.$object_type) %>%
+  map(~tidy(cor.test(.$age, .$prop, use = "complete"))) %>%
+  bind_rows(.id = "object_type") %>%
+  select(-statistic) %>%
+  rename(r = estimate, df = parameter)
 kable(learn_corrs)
 
-# Test null models differences by window_type
+# Compare learning to test
 age_test_nulls <- test_data_subj %>%
-  split(paste(.$age_group, .$object_type, sep = " ")) %>%
-  map(~lm((prop - .5) ~ 1, data = .)) %>%
-  map(function(x) as.data.frame(summary(x)$coefficients)[1,]) %>%
+  split(paste(.$age_group, .$test_type, .$object_type, sep = "-")) %>%
+  map(~tidy(t.test(x = .$prop, mu = .5))) %>%
   bind_rows(.id = "id") %>%
-  separate(id, c("age_group", "object_type"), sep = " ")
+  separate(id, c("group", "test_type", "object_type"), sep = "-") %>%
+  rename(mu = estimate, t = statistic, df = parameter)
 kable(age_test_nulls)
 
 #tests
-age_test_types <- lmer(prop ~ object_type * age + (1|subj), data = test_data_subj)
-kable(coeff_table(age_test_types))
+age_test_types <- lmer(prop ~ age + object_type + test_type + (1|subj), 
+                       data = test_data_subj)
+kable(summary(age_test_types)$coefficients)
+
+
+#tests--NF only
+age_test_types_NF <- lmer(prop ~ age + object_type + (1|subj), 
+                       data = filter(test_data_subj, test_type == "NF"))
+
+
+#tests--NF only, include Familiar, interaction
+test_model_NF <- lmer(test ~ age + object_type + Familiar + (1|subj), 
+                       data = filter(model_data, test_type == "NF"))
+
+#tests--NF only, include Familiar
+test_model_NF_int <- lmer(test ~ age + object_type * Familiar + (1|subj), 
+                       data = filter(model_data, test_type == "NF"))
+
+kable(anova(test_model_NF,test_model_NF_int))
+
+summary(test_model_NF_int)
+
+kable(summary(test_model_NF)$coefficients)
+
+# Compare object_type across ages
+age_group_object_types <- lmer(test ~ Familiar + as.factor(age_group)*object_type +
+                                 Familiar + (1|subj), 
+                               data = filter(model_data, object_type != "Familiar",
+                                             test_type == "NF"))
+kable(summary(age_group_object_types)$coefficients)
+
+
+
 
 # Age differences by window_type
 test_corrs <- model_data %>%
-  split(paste(.$object_type, .$window_type, sep = " ")) %>%
-  map(~cor.test(.$test, .$prop, use = "complete")) %>%
-  map(make_cor_df) %>%
+  split(paste(.$object_type, .$test_type, .$window_type, sep = "-")) %>%
+  map(~tidy(cor.test(.$test, .$prop, use = "complete"))) %>%
   bind_rows(.id = "id") %>%
-  separate(id, c("object_type", "window_type"), sep = " ")
+  separate(id, c("object_type", "test_type", "window_type"), sep = "-")
 kable(test_corrs)
+# 
+# model <- lmer(test ~ prop + (1|subj),  
+#               data = filter(model_data, window_type == "long"))
+# 
+# dat <- filter(model_data, window_type == "long")
+# 
+# cor(dat$test, dat$prop, use = "complete")
+# cor(dat$test, dat$Familiar, use = "complete")
+# cor(dat$test, dat$age, use = "complete")
+# cor(dat$prop, dat$object_type == "Extended Hold", use = "complete")
+# 
+# 
+# 
+# cor(filter(model_data, window_type == "short")$test,
+#     filter(model_data, window_type == "short")$prop, use = "complete")
+# 
+# 
+# model <- lmer(test ~ Familiar + age + object_type + (1|subj),
+#               data = filter(model_data, window_type == "short"))
+# 
+# resid_data <- filter(model_data, !is.na(test))
+# resid_data$resid <- residuals(lm(test ~ age + object_type , data = resid_data))
+# 
+# tmp <- filter(resid_data, window_type == "long")
+# cor(tmp$resid, tmp$z_prop, use = "complete")
 
-resid_data <- filter(model_data, !is.na(test))
-resid_data$resid <- residuals(lmer(test ~ age + (1|subj), data = resid_data))
-
-resid_models <- resid_data %>%
-  split(.$window_type) %>%
-  map(~lmer(resid ~ prop + familiar + object_type + (1|subj), data = .)) %>%
-  map(coeff_table) %>%
-  bind_rows(.id = "window_type")
-
-kable(resid_models)
+# # 
+# # resid_models <- resid_data %>%
+# #   split(.$window_type) %>%
+# #   map(~lmer(resid ~ prop + familiar + object_type + (1|subj), data = .)) %>%
+# #   map(coeff_table) %>%
+# #   bind_rows(.id = "window_type")
+# 
+# 
+# resid_models <- resid_data %>%
+#   filter(object_type == "extended") %>%
+#   split(.$window_type) %>%
+#   map(~lm(resid ~ prop + familiar, data = .)) %>%
+#   map(coeff_table) %>%
+#   bind_rows(.id = "window_type")
+# 
+# kable(resid_models)
 ```
