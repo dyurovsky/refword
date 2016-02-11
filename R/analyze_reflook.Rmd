@@ -239,10 +239,10 @@ test_data_time <- test_data %>%
   summarise_each(funs(mean(., na.rm = T), sem(., na.rm = T)),correct) %>%
   rename(correct = mean) %>%
   group_by(group, age_group, type, Time) %>%
-  mutate(roll_mean = rollapply(correct, 15, 
+  mutate(roll_mean = rollapply(correct, 30, 
                                FUN = function(x) {mean(x, na.rm = T)},
                                partial = TRUE),
-         roll_sem = rollapply(sem, 15, 
+         roll_sem = rollapply(sem, 30, 
                               FUN = function(x) {mean(x, na.rm = T)},
                               partial = TRUE)) %>%
   rename(mean = correct)
@@ -250,7 +250,7 @@ test_data_time <- test_data %>%
 
 Plot test timecourses
 ```{r test_timecourses, fig.width = 8, fig.height= 6}
-ggplot(filter(test_data_time, Time == round(Time, 1)), 
+ggplot(filter(test_data_time, Time == round(Time, 2)), 
        aes(x = Time, y = roll_mean, colour = age_group, 
            fill = age_group, 
            label = age_group))+
@@ -264,7 +264,7 @@ ggplot(filter(test_data_time, Time == round(Time, 1)),
 #             alpha = .01, fill = "lightgray", colour = NA) +
   geom_vline(aes(xintercept = TEST_START), lty= "dashed", color = "gray") + 
    geom_vline(aes(xintercept = TEST_END), lty= "dashed", color = "gray") + 
-  scale_x_continuous(name = "Time", limits = c(-2, 4.5), breaks = seq(-2,4.5,1))+ 
+  scale_x_continuous(name = "Time", limits = c(-1, 4.5), breaks = seq(-1,4.5,1))+ 
   geom_vline(aes(xintercept = 0), lty = "dashed") +
   scale_y_continuous(limits = c(0,1), breaks=seq(0,1,.1),
                      name = "Prop. correct looks") +
@@ -274,6 +274,31 @@ ggplot(filter(test_data_time, Time == round(Time, 1)),
   scale_color_manual(values = COLORS) +
   scale_fill_manual(values = COLORS) +
   geom_dl(method = list(dl.trans(x=x +.2), "last.qp", cex=1))
+```
+
+Plot familiar timecourse for paper
+```{r familiar_timecourse, fig.width = 6, fig.height= 3}
+#quartz(width = 6, height = 3)
+ggplot(filter(test_data_time, Time == round(Time, 1), type == "Familiar"), 
+       aes(x = Time, y = roll_mean, colour = age_group, 
+           fill = age_group))+
+  geom_ribbon(aes(ymin = roll_mean - roll_sem,
+                      ymax = roll_mean + roll_sem),
+                  size=0, alpha = .5)+
+  geom_line()+
+  geom_hline(aes(yintercept = .5), lty= "dashed")  +
+  scale_x_continuous(name = "Time", limits = c(-1, 4.1), breaks = seq(-1,4.2,1))+ 
+  geom_vline(aes(xintercept = 0), lty = "dashed") +
+  annotate("rect", xmin = TEST_START, xmax = TEST_END, ymin = -Inf, ymax = Inf,
+          alpha = .25, fill = "lightgray") +
+  scale_y_continuous(limits = c(.4,1), breaks=seq(.4,1,.1),
+                     name = "Prop. Looks to Target") +
+  theme_bw(base_size = 14) + 
+  theme(panel.grid = element_blank(), legend.position = c(.1,.65),
+        axis.title.x = element_text(vjust=-.5), axis.title.y = element_text(vjust=1),
+        legend.title = element_blank()) +
+  scale_color_manual(values = COLORS, guide = guide_legend(reverse=TRUE)) +
+  scale_fill_manual(values = COLORS, guide = guide_legend(reverse=TRUE))
 ```
 
 Munge data to compute looking proportions
