@@ -2,17 +2,17 @@
 %\def\pscurrentversion{May 1, 2006}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% 
+%%
 %% PostScript fonts for
 %% PNASOne, the one column journal style for
 %% Proceedings of the National Academy of Sciences
 %%
-%% Prepared by Amy Hendrickson, TeXnology Inc.                          
+%% Prepared by Amy Hendrickson, TeXnology Inc.
 %%
 %% For assistance, please contact the PNAS Editorial Office:
 %% 202-334-2679
-%% pnas@nas.edu                       
-%%                                           
+%% pnas@nas.edu
+%%
 %% Use: \documentclass{pnasone}
 %%      (optional font encoding) \usepackage{t1enc} or \usepackage{OT1enc}
 %%      \usepackage[<driver name>]{graphicx}
@@ -46,10 +46,10 @@
 \def\timesbolditalic{ptmbi8t}
 
 %% BlueSky or other TeX Systems, write in appropriate font name:
-%\def\timesroman{}
-%\def\timesbold{}
-%\def\timesitalic{}
-%\def\timesbolditalic{}
+%\def\timesroman{du801btr7t}
+%\def\timesbold{du801btb7t}
+%\def\timesitalic{du801bti7t}
+%\def\timesbolditalic{du801btbi7t}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -69,10 +69,12 @@
 \def\helveticabold{phvb}
 
 %% BlueSky or other TeX Systems, write in appropriate font name:
-%\def\helvetica{}
-%\def\helveticabold{}
-%\def\helveticaoblique{}
-
+%\def\helvetica{pftr7t}
+%\def\helveticabold{pftb7t}
+%\def\helveticaoblique{pfti7t}
+%\def\helveticaboldoblique{pftbi7t}
+%\def\helveticaboldcondensed{pftbc7t}
+%\def\helveticablackcondensed{pftblc7t }
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Frutiger
 %% Use Helvetica (No need to change these font declarations,
@@ -90,6 +92,8 @@
 \def\frutigerboldcondensed{\helveticabold}
 \def\frutigermed{\helvetica}
 \def\frutigerblackCond{\helveticabold}
+
+
 
 %%
 \def\dutchbold{\timesbold}
@@ -110,7 +114,7 @@
 %% !!!!!!!!!
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%% default definitions, since these fonts 
+%% default definitions, since these fonts
 %% will not be used:
 \let\xcourier\courier
 \def\courieroblique{pcrro8r}
@@ -186,10 +190,10 @@ in \string\usepackage{T1enc},^^J please use it BEFORE
 \font\abstractit=\helveticaboldoblique at 8pt
 
 %% Bibliography
-\font\xbibfont=\frutigerbold at 6pt
+\font\xbibfont=\frutiger at 6pt
 \def\bibfont{\sf\xbibfont\dospecialaccents}
-\font\bibitfont\helveticaboldoblique at 6pt
-\font\bibbffont\helveticabold at 6pt
+\font\bibitfont=\helveticaoblique at 6pt
+\font\bibbffont=\helvetica at 6pt
 
 %% Materials and Methods
 \font\materialfont=\frutiger at 7pt
@@ -200,13 +204,17 @@ in \string\usepackage{T1enc},^^J please use it BEFORE
 \font\sectionfont=\frutigerblackCond at 9pt
 \font\subsectionfont=\frutigerblackCond at 8pt
 
+
+\font\significanceheadfont=\frutigerbold at 9pt
+\font\significancefont=\frutigerbold at 8pt
+
 %% Theorem fonts
   \font\theoremfont=\frutigerbold at 8pt
 
-%% Caption 
+%% Caption
  \font\fignumfont=\frutigerbold at 7pt
 \font\xfigtextfont=\frutiger at 7pt
-  \def\figtextfont{\small\dospecialaccents\xfigtextfont} 
+  \def\figtextfont{\small\dospecialaccents\xfigtextfont}
 
 %% Table font
 \font\tabletextfont=\frutiger at 7.5pt
@@ -327,7 +335,7 @@ in \string\usepackage{T1enc},^^J please use it BEFORE
   {<->sub * \xcourier/m/it}{}
 \DeclareFontShape{\encodingdefault}{\ttdefault}{bx}{ui}
   {<->sub * \xcourier/m/it}{}
-%% 
+%%
 %% End of file `<encodingdefault><ttdefault>.fd'.
 
 %Filename: <encodingdefault><sfdefault>.fd
@@ -374,6 +382,88 @@ in \string\usepackage{T1enc},^^J please use it BEFORE
 
 \let\dospecialaccents\relax
 
+
+%%%%%Math variable
+
+\DeclareSymbolFont{numbers}{\encodingdefault}{\rmdefault}{m}{n}
+\DeclareSymbolFont{alphabets}{\encodingdefault}{\rmdefault}{m}{it}
+\DeclareSymbolFont{operators}{\encodingdefault}{\rmdefault}{m}{n}
+
+%
+\DeclareMathSymbol{0}{\mathalpha}{numbers}{"30}
+\DeclareMathSymbol{1}{\mathalpha}{numbers}{"31}
+\DeclareMathSymbol{2}{\mathalpha}{numbers}{"32}
+\DeclareMathSymbol{3}{\mathalpha}{numbers}{"33}
+\DeclareMathSymbol{4}{\mathalpha}{numbers}{"34}
+\DeclareMathSymbol{5}{\mathalpha}{numbers}{"35}
+\DeclareMathSymbol{6}{\mathalpha}{numbers}{"36}
+\DeclareMathSymbol{7}{\mathalpha}{numbers}{"37}
+\DeclareMathSymbol{8}{\mathalpha}{numbers}{"38}
+\DeclareMathSymbol{9}{\mathalpha}{numbers}{"39}
+
+%
+\DeclareMathSymbol{A}{\mathalpha}{alphabets}{"41}
+\DeclareMathSymbol{B}{\mathalpha}{alphabets}{"42}
+\DeclareMathSymbol{C}{\mathalpha}{alphabets}{"43}
+\DeclareMathSymbol{D}{\mathalpha}{alphabets}{"44}
+\DeclareMathSymbol{E}{\mathalpha}{alphabets}{"45}
+\DeclareMathSymbol{F}{\mathalpha}{alphabets}{"46}
+\DeclareMathSymbol{G}{\mathalpha}{alphabets}{"47}
+\DeclareMathSymbol{H}{\mathalpha}{alphabets}{"48}
+\DeclareMathSymbol{I}{\mathalpha}{alphabets}{"49}
+\DeclareMathSymbol{J}{\mathalpha}{alphabets}{"4A}
+\DeclareMathSymbol{K}{\mathalpha}{alphabets}{"4B}
+\DeclareMathSymbol{L}{\mathalpha}{alphabets}{"4C}
+\DeclareMathSymbol{M}{\mathalpha}{alphabets}{"4D}
+\DeclareMathSymbol{N}{\mathalpha}{alphabets}{"4E}
+\DeclareMathSymbol{O}{\mathalpha}{alphabets}{"4F}
+\DeclareMathSymbol{P}{\mathalpha}{alphabets}{"50}
+\DeclareMathSymbol{Q}{\mathalpha}{alphabets}{"51}
+\DeclareMathSymbol{R}{\mathalpha}{alphabets}{"52}
+\DeclareMathSymbol{S}{\mathalpha}{alphabets}{"53}
+\DeclareMathSymbol{T}{\mathalpha}{alphabets}{"54}
+\DeclareMathSymbol{U}{\mathalpha}{alphabets}{"55}
+\DeclareMathSymbol{V}{\mathalpha}{alphabets}{"56}
+\DeclareMathSymbol{W}{\mathalpha}{alphabets}{"57}
+\DeclareMathSymbol{X}{\mathalpha}{alphabets}{"58}
+\DeclareMathSymbol{Y}{\mathalpha}{alphabets}{"59}
+\DeclareMathSymbol{Z}{\mathalpha}{alphabets}{"5A}
+
+%
+\DeclareMathSymbol{a}{\mathalpha}{alphabets}{"61}
+\DeclareMathSymbol{b}{\mathalpha}{alphabets}{"62}
+\DeclareMathSymbol{c}{\mathalpha}{alphabets}{"63}
+\DeclareMathSymbol{d}{\mathalpha}{alphabets}{"64}
+\DeclareMathSymbol{e}{\mathalpha}{alphabets}{"65}
+\DeclareMathSymbol{f}{\mathalpha}{alphabets}{"66}
+\DeclareMathSymbol{g}{\mathalpha}{alphabets}{"67}
+\DeclareMathSymbol{h}{\mathalpha}{alphabets}{"68}
+\DeclareMathSymbol{i}{\mathalpha}{alphabets}{"69}
+\DeclareMathSymbol{j}{\mathalpha}{alphabets}{"6A}
+\DeclareMathSymbol{k}{\mathalpha}{alphabets}{"6B}
+\DeclareMathSymbol{l}{\mathalpha}{alphabets}{"6C}
+\DeclareMathSymbol{m}{\mathalpha}{alphabets}{"6D}
+\DeclareMathSymbol{n}{\mathalpha}{alphabets}{"6E}
+\DeclareMathSymbol{o}{\mathalpha}{alphabets}{"6F}
+\DeclareMathSymbol{p}{\mathalpha}{alphabets}{"70}
+\DeclareMathSymbol{q}{\mathalpha}{alphabets}{"71}
+\DeclareMathSymbol{r}{\mathalpha}{alphabets}{"72}
+\DeclareMathSymbol{s}{\mathalpha}{alphabets}{"73}
+\DeclareMathSymbol{t}{\mathalpha}{alphabets}{"74}
+\DeclareMathSymbol{u}{\mathalpha}{alphabets}{"75}
+\DeclareMathSymbol{v}{\mathalpha}{alphabets}{"76}
+\DeclareMathSymbol{w}{\mathalpha}{alphabets}{"77}
+\DeclareMathSymbol{x}{\mathalpha}{alphabets}{"78}
+\DeclareMathSymbol{y}{\mathalpha}{alphabets}{"79}
+\DeclareMathSymbol{z}{\mathalpha}{alphabets}{"7A}
+
+%
+\DeclareMathSymbol{,}{\mathpunct}{numbers}{'054}
+\DeclareMathSymbol{.}{\mathord}{numbers}{'056}
+\DeclareMathSymbol{:}{\mathrel}{numbers}{'072}
+\DeclareMathSymbol{;}{\mathpunct}{numbers}{'073}
+\DeclareMathSymbol{(}{\mathpunct}{numbers}{40}
+\DeclareMathSymbol{)}{\mathpunct}{numbers}{41}
 
 
 \endinput

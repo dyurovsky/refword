@@ -248,40 +248,14 @@ test_data_time <- test_data %>%
   rename(mean = correct)
 ```
 
-Plot test timecourses
-```{r test_timecourses, fig.width = 8, fig.height= 6}
-ggplot(filter(test_data_time, Time == round(Time, 2)), 
-       aes(x = Time, y = roll_mean, colour = age_group, 
-           fill = age_group, 
-           label = age_group))+
-  facet_grid(type ~ . ) +
-  geom_ribbon(aes(ymin = roll_mean - roll_sem,
-                      ymax = roll_mean + roll_sem),
-                  size=0, alpha = .5)+
-  geom_line()+
-  geom_hline(aes(yintercept = .5), lty= "dashed")  +
-#   geom_rect(aes(xmin = TEST_START, xmax = TEST_END, ymin = -Inf, ymax = Inf),
-#             alpha = .01, fill = "lightgray", colour = NA) +
-  geom_vline(aes(xintercept = TEST_START), lty= "dashed", color = "gray") + 
-   geom_vline(aes(xintercept = TEST_END), lty= "dashed", color = "gray") + 
-  scale_x_continuous(name = "Time", limits = c(-1, 4.5), breaks = seq(-1,4.5,1))+ 
-  geom_vline(aes(xintercept = 0), lty = "dashed") +
-  scale_y_continuous(limits = c(0,1), breaks=seq(0,1,.1),
-                     name = "Prop. correct looks") +
-  theme_bw(base_size = 16) + 
-  theme(panel.grid = element_blank(), legend.position = "none",
-        axis.title.x=element_text(vjust=-.5), axis.title.y=element_text(vjust=1)) +
-  scale_color_manual(values = COLORS) +
-  scale_fill_manual(values = COLORS) +
-  geom_dl(method = list(dl.trans(x=x +.2), "last.qp", cex=1))
-```
 
-Plot familiar timecourse for paper
-```{r familiar_timecourse, fig.width = 6, fig.height= 3}
-#quartz(width = 6, height = 3)
-ggplot(filter(test_data_time, Time == round(Time, 1), type == "Familiar"), 
+Plot test timecourses
+```{r familiar_timecourse, fig.width = 6, fig.height= 5}
+#quartz(width = 6, height = 5)
+ggplot(filter(test_data_time, Time == round(Time, 1)), 
        aes(x = Time, y = roll_mean, colour = age_group, 
            fill = age_group))+
+  facet_grid(type ~ . ) +
   geom_ribbon(aes(ymin = roll_mean - roll_sem,
                       ymax = roll_mean + roll_sem),
                   size=0, alpha = .5)+
@@ -291,12 +265,13 @@ ggplot(filter(test_data_time, Time == round(Time, 1), type == "Familiar"),
   geom_vline(aes(xintercept = 0), lty = "dashed") +
   annotate("rect", xmin = TEST_START, xmax = TEST_END, ymin = -Inf, ymax = Inf,
           alpha = .25, fill = "lightgray") +
-  scale_y_continuous(limits = c(.4,1), breaks=seq(.4,1,.1),
+  scale_y_continuous(limits = c(.3,1), breaks=seq(.3,1,.1),
                      name = "Prop. Looks to Target") +
   theme_bw(base_size = 14) + 
-  theme(panel.grid = element_blank(), legend.position = c(.1,.65),
+  theme(panel.grid = element_blank(), legend.position = c(.1,.86),
         axis.title.x = element_text(vjust=-.5), axis.title.y = element_text(vjust=1),
-        legend.title = element_blank()) +
+        legend.title = element_blank(), legend.text=element_text(size=10),
+        legend.background = element_blank(), legend.key.size = unit(.5, "cm")) +
   scale_color_manual(values = COLORS, guide = guide_legend(reverse=TRUE)) +
   scale_fill_manual(values = COLORS, guide = guide_legend(reverse=TRUE))
 ```
@@ -339,7 +314,7 @@ plotting_data <- test_data_age_group %>%
   mutate(age_group = factor(age_group, labels = c("ASD", "1-year", "2-year",
                                                   "3-year", "4-year", "adult"))) 
 
-#quartz(width = 6, height = 4)
+quartz(width = 6, height = 4)
 ggplot(plotting_data, 
        aes(x = age_group, y = mean, colour = type, label = type))+
   geom_pointrange(aes(ymin = ci_lower,
@@ -395,7 +370,7 @@ independent <- learn_data_subj %>%
 model_data <- left_join(learn_data_subj, dependent)
 ```
 
-```{r fit_models}
+```{r fit_correlations}
 # Age differences by window_type
 learn_corrs <- learn_data_subj %>%
   filter(group != "adult") %>%
@@ -453,8 +428,39 @@ test_corrs <- model_data %>%
   select(-statistic) %>%
   rename(r = estimate, df = parameter)
 kable(test_corrs)
+```
+
+```{r learn_test_correlations, fig.width = 4, fig.height = 6}
+corr_plot_data <- model_data %>%
+  ungroup() %>%
+  filter(window_type == "look_name2", group != "adult") %>%
+  select(-Familiar, -window_type) %>%
+  rename(gaze_following = prop) %>%
+  mutate(age_group = factor(floor(age)),
+         group = factor(group, levels = c("child", "ASD"),
+                        labels = c("Typical", "ASD")))
 
 
+#quartz(width = 4, height = 6)
+ggplot(data = corr_plot_data,
+       aes(x = gaze_following, y = Novel, color = age_group,
+           group = 1)) +
+  facet_grid(group ~ .)+
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, color = "darkgrey", size = 1.5) +
+  scale_y_continuous(limits = c(0,1), breaks = seq(0, 1, .1),
+                     name = "Novel Word Learning") +
+  scale_x_continuous(limits = c(0,1), breaks = seq(0, 1, .1),
+                     name = "Gaze Following") +
+  theme_bw(base_size = 14) + 
+  theme(legend.position= "none",
+        panel.grid=element_blank()) +
+  scale_color_manual(values = c(COLORS[2:5], "#021F4A", "#000814")) 
+
+```
+
+
+```{r fit_models}
 # Predicting learning
 test_model <- model_data %>%
   ungroup() %>%
@@ -465,13 +471,6 @@ test_model <- model_data %>%
   bind_rows(.id = "group")
 
 kable(test_model)
-
-# 
-# test_mode
-# 
-#   lm(Novel ~ familiar + age + look_name2 + reach_cotact, data = filter(test_data_subj, group == "child"))
-
-
 age_resids <- model_data %>%
   filter(group != "adult", !is.na(Novel)) %>%
   ungroup() %>%
@@ -496,8 +495,6 @@ resid_looks <- age_resid_data %>%
 
 kable(resid_looks)
 
-
-
 look_resids <- model_data %>%
   spread(window_type, prop) %>%
   filter(group != "adult", !is.na(Novel), !is.na(look_name2)) %>%
@@ -519,8 +516,6 @@ resid_age <- look_resid_data %>%
   map(~tidy(lm(resid ~ age, data = .))) %>%
   bind_rows(.id = "group") %>%
   rename(predictor = term, beta = estimate, z = statistic)
-
-
 ```
 
 ```{r correlations}
