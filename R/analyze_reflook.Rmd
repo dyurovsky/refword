@@ -36,6 +36,7 @@ library(purrr)
 library(broom)
 library(lme4)
 library(lmerTest)
+library(irr)
 ```
 
 Set constants
@@ -49,10 +50,10 @@ LEARN_END <- 15
 
 ```{r load_data, echo = FALSE}
 #plotting colors
-COLORS <- c("#E60707","#c6dbef","#6baed6","#2171b5","#08306b","#f16913")#6a51a3
+COLORS <- c("#009900","#c6dbef","#6baed6","#2171b5","#08306b","#f16913")#6a51a3
 
 #read looking data
-raw_child_learn_data <- read_csv("processed_data/csvs/reflook/child/train_data.csv") %>%
+raw_child_learn_data <- read_csv("processed_data/csvs/reflook/child/learn_data.csv") %>%
   filter(age >= 1 & age < 5) %>%
   mutate(age_group = factor(floor(age)),
          group = "child")
@@ -62,19 +63,29 @@ raw_child_test_data <- read_csv("processed_data/csvs/reflook/child/test_data.csv
   mutate(age_group = factor(floor(age)),
          group = "child")
 
-raw_adult_learn_data <- read_csv("processed_data/csvs/reflook/adult/train_data.csv") %>%
+raw_adult_learn_data <- read_csv("processed_data/csvs/reflook/adult/learn_data.csv") %>%
   mutate(age = NA, age_group = "adult", group = "adult") 
 
 raw_adult_test_data <- read_csv("processed_data/csvs/reflook/adult/test_data.csv") %>%
   mutate(age = NA,  age_group = "adult", group = "adult") 
 
-raw_ASD_learn_data <- read_csv("processed_data/csvs/reflook/ASD/train_data.csv") %>%
+raw_ASD_learn_data <- read_csv("processed_data/csvs/reflook/ASD/learn_data.csv") %>%
   filter(age <= 8) %>%
   mutate(age_group = "ASD", group = "ASD") 
 
 raw_ASD_test_data <- read_csv("processed_data/csvs/reflook/ASD/test_data.csv") %>%
   filter(age <= 8) %>%
   mutate(age_group = "ASD", group = "ASD")
+```
+
+```{r calibration_kappas}
+read_calibs <- function(group) read_csv(paste0("processed_data/calib_adjust/reflook/",
+                                               group, "/calibs.csv"))
+
+calib_kappas<- lapply(c("child", "ASD"), read_calibs) %>%
+  map(function(df) kappa2(df[,c("coder1_include", "coder2_include")]))
+
+print(calib_kappas)
 ```
 
 Exclude children as necessary
@@ -107,7 +118,7 @@ kable(bind_cols(dropped_english, dropped_premie),
 count_girls <- kept_ps %>%
   group_by(age_group, gender) %>%
   distinct(subj) %>%
-  filter(gender == "female") %>%
+  filter(gender == "Female") %>%
   summarise(female = n()) %>%
   select(-gender)
 
@@ -122,7 +133,7 @@ count_ps <- kept_ps %>%
 asd_ps <- raw_ASD_test_data %>%
   distinct(subj) %>%
   group_by(age_group) %>%
-  summarise(female = sum(gender == "female"),
+  summarise(female = sum(gender == "Female"),
             initial_n = n(),
             final_n = n(),
             mean_age = mean(age), min_age = min(age),
@@ -314,7 +325,7 @@ plotting_data <- test_data_age_group %>%
   mutate(age_group = factor(age_group, labels = c("ASD", "1-year", "2-year",
                                                   "3-year", "4-year", "adult"))) 
 
-quartz(width = 6, height = 4)
+#quartz(width = 6, height = 4)
 ggplot(plotting_data, 
        aes(x = age_group, y = mean, colour = type, label = type))+
   geom_pointrange(aes(ymin = ci_lower,

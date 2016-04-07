@@ -1,7 +1,7 @@
 adjust_calibs <- function(plot = TRUE,video) {
   pts <- read_csv(paste0("processed_data/aois/",video,"_calibs.csv")) %>%
     mutate(start_time = start_time + CALIB_SACCADE_TIME,
-           end_time = end_time+ CALIB_SACCADE_TIME)
+           end_time = end_time + CALIB_SACCADE_TIME)
   
   #pull out calibration data
   learn_data <- filter(all_results, Stimulus == CALIB_STIM) %>%
@@ -30,9 +30,8 @@ adjust_calibs <- function(plot = TRUE,video) {
     
     first_ind = first(which(calib_data$subj == SWITCH_SUBJ))
     calib_data <- calib_data[1:(first_ind-1),]
-    
-    second_ind = first(which(learn_data$subj == SWITCH_SUBJ))
-    second_learn_data <- learn_data[second_ind:nrow(learn_data),]
+ 
+    second_learn_data <- learn_data[first_ind:nrow(learn_data),]
     
     calib_data_2 <- lapply(1:nrow(pts2), function (pt) {
       second_learn_data %>%

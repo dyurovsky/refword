@@ -1,7 +1,7 @@
 ---
 title: Developmental changes in the speed of social attention in early word 
   learning -- Experiment 3
-author: Daniel Yurovsky, Anna Wade, Allison M Krauss, Grace w. Gengoux, 
+author: Daniel Yurovsky, Anna Wade, Allison M Krauss, Grace W. Gengoux, 
   Antonio Hardan, & Michael C Frank
 date: "`r Sys.Date()`"
 output:
@@ -39,7 +39,7 @@ library(lme4)
 library(lmerTest)
 ```
 
-```{r, echo = FALSE}
+```{r, echo = TRUE}
 #CONSTANTS
 TEST_START <- .5
 TEST_END <- 4.5
@@ -66,6 +66,14 @@ raw_test_data <- read_csv(paste0("processed_data/csvs/soc_word/child/test_data.c
   mutate(group = "child") %>%
   mutate(object_type = factor(object_type, levels = c("extended", "familiar", "brief"),
          labels = c("Extended Hold", "Familiar", "Brief Look")))
+```
+
+```{r calibration_kappas}
+calibs <- read_csv("processed_data/calib_adjust/soc_word/child/calibs.csv")
+
+calib_kappa <-kappa2(calibs[, c("coder1_include", "coder2_include")])
+
+print(calib_kappa)
 ```
 
 Exclude children as necessary
@@ -252,6 +260,41 @@ learn_data_time <- learn_data %>%
                               partial = TRUE)) %>%
   rename(mean = correct)
 ```
+
+Accs and RTs
+```{r train_timecourse_data}
+#summarize across individual trials
+include_trial_onset <- learn_data %>% 
+  filter(Time == 0) %>%
+  group_by(object_type, age_group, subj, trial ) %>%
+  summarise(include = sum(aoi == "Face")) %>%
+  filter(include == 1)
+
+include_trial_target <- left_join(include_trial_onset, learn_data) %>%
+  arrange(object_type, age_group, age, subj, trial, Time) %>%
+  group_by(object_type, age_group, age, subj, trial, aoi) %>%
+  distinct() %>%
+  summarise(Time = mean(Time)) %>%
+  filter(!is.na(aoi)) %>%
+  spread(aoi, Time)
+
+accs <- include_trial_target %>%
+  summarise(correct = ((is.na(Competitor) & !is.na(Target)) | (Target < Competitor))) %>%
+  summarise(correct = mean(correct, na.rm = T)) %>%
+  summarise(correct = mean(correct, na.rm = T)) %>%
+  summarise(correct = mean(correct, na.rm = T), n = n(), age = mean(age))
+
+rts <- include_trial_target %>%
+  filter((is.na(Competitor) & !is.na(Target)) | (Target < Competitor)) %>%
+  summarise(rt = mean(Target)) %>%
+  summarise(rt = mean(rt)) %>%
+  summarise(rt = mean(rt)) %>%
+  summarise(rt = mean(rt))
+
+soc_word_data <- left_join(accs, rts)
+```
+
+
 
 ```{r train_timecourses, fig.width = 8, fig.height = 3.5}
 ggplot(filter(learn_data_time, Time == round(Time, 1)), 
