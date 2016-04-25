@@ -1,40 +1,82 @@
-
+library(grid)
 ###############################################################################
 ################################ Make heat maps ###############################
 ###############################################################################
-times <- sort(unique(learn_data$Time))
-frames <- list.files(path = paste0("../stimuli/", VIDEOS[video], "/frames"), 
-                     pattern = '*.jpeg',
-                     all.files = FALSE)
+if(VIDEOS[video] == "soc_word") {
+  learn_video <- "s1_2bosa"
+  
+  # SWITCH_SUBJ = "2013_04_30_265"
+  # 
+  # first_ind = first(which(calib_data$subj == SWITCH_SUBJ))
+  # calib_data <- calib_data[(first_ind+1):nrow(calib_data),]
+  # 
+  #heatmap_data <- calib_data
+  #heatmap_aois <- data.frame()
+  
+  heatmap_data <- filter(learn_data, Stimulus == paste0(learn_video,".avi"))
+  heatmap_aois <- filter(train_aois, Stimulus == paste0(learn_video,".avi"))
 
-times <- times[200:250]
-frames <- frames[200:250]
+  times <- sort(unique(heatmap_data$Time))
+  frames <- list.files(path = paste0("../stimuli/", VIDEOS[video], 
+                                     "/frames/",learn_video), 
+                       pattern = '*.jpeg', all.files = FALSE, full.names = TRUE)
+} else {
+  heatmap_aois <- train_aois
+  heatmap_data <- learn_data
+  times <- sort(unique(learn_data$Time))
+  frames <- list.files(path = paste0("../stimuli/", VIDEOS[video], "/frames"), 
+                       pattern = '*.jpeg', all.files = FALSE, full.names = TRUE)
+}
+
+#times <- times[1:1441]
+#frames <- frames[1:441]
+
+output_type <- "jpeg" #jpeg or pdf
 
 plot_maps <- function(time, frame) {
-  data <- filter(learn_data, Time == time)
-  aois <- filter(train_aois, Time == time) %>%
+  data <- filter(heatmap_data, Time == time)
+  aois <- filter(heatmap_aois, Time == time) %>%
     mutate(x = 0, y = 0)
   
-  img <- readJPEG(paste0("../stimuli/", VIDEOS[video], "/frames/",frame))
+  raw_img <- load.image(frame) %>%
+    pad(., 180, "y") %>%save.image("try.jpeg")
+  # 
+  # 
+  # 
+  # img <- readJPEG(frame)
+  # 
+  # img <- img[,120:839,]
+  # 
+  img <- readJPEG("try.jpeg")
+  img <- img[,120:839,]
   
-  pdf(file = paste0("processed_data/heatmaps/", VIDEOS[video], "/",
-                    GROUP, "/" ,frame,".pdf"), width=640, height=360)
+  if(output_type == "pdf") {
+    pdf(file = paste0("processed_data/heatmaps/", VIDEOS[video], "/",
+                      GROUP, "/" , last(unlist(str_split(frame, "/"))),
+                      ".pdf"), width=640, height=480)
+  } else {
+    jpeg(file = paste0("processed_data/heatmaps/", VIDEOS[video], "/",
+                      GROUP, "/" , last(unlist(str_split(frame, "/"))),
+                      ".jpeg"), width=640, height=480)
+  }
 
   
   heat_map <- ggplot(aes(x = x, y = Y_MAX - y), data = data) +
     #stat_density2d(aes(fill=..level..),geom="polygon") +
     annotation_custom(rasterGrob(img, width=unit(1, "npc"), height=unit(1, "npc")), 
                       0, X_MAX, 0, Y_MAX) +
+    #geom_point(color = "red") +
     stat_density2d(aes(fill=..level..,alpha=..level..), 
                    geom="polygon") +
-    scale_fill_gradient(low="blue", high="green") 
+    scale_alpha(range = c(.1, .5)) +
+    scale_fill_gradient(low="blue", high="green")
   
   if(nrow(aois) > 0) {
-    heat_map <- heat_map + geom_rect(aes(xmin = top_left_x - AOI_BUFFER,
-                  xmax=bottom_right_x + AOI_BUFFER,
-                  ymin = Y_MAX - top_left_y + AOI_BUFFER, 
-                  ymax = Y_MAX - bottom_right_y - AOI_BUFFER),
-              data = aois, fill=NA, colour="white", size=50) 
+    heat_map <- heat_map + geom_rect(aes(xmin = top_left_x - AOI_BUFFER,# - 280,
+                  xmax=bottom_right_x + AOI_BUFFER,# - 280,
+                  ymin = Y_MAX - top_left_y + AOI_BUFFER,# - 130, 
+                  ymax = Y_MAX - bottom_right_y - AOI_BUFFER),# - 130),
+              data = aois, fill=NA, colour="white", size=1) 
   }
   
   heat_map <- heat_map + 
@@ -54,6 +96,8 @@ plot_maps <- function(time, frame) {
   
   dev.off()
 }
+
+
 
 plots <- mapply(plot_maps, times, frames)
 

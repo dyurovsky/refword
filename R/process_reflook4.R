@@ -35,7 +35,8 @@ LEARN_STIMS = list("reflook4_4.avi", "ref-asd-birthday2.avi",
 
 CALIB_STIMS = c("reflook4_4.avi", "ref-asd-birthday2.avi",
                 "ref-asd-kitchen2.avi","calib.avi")
-
+CALIB_STIM_LENGTHS <- c(NA,NA,NA,11.344)
+CALIB_STIM_LENGTH <- CALIB_STIM_LENGTHS[video]
 
 
 EXCLUDED_STIMS <- read_csv(paste0("processed_data/loading_files/",
@@ -51,8 +52,8 @@ CALIB_SACCADE_TIME <- .3
 
 FRAME_RATE <- 30
 
-IMG_WIDTHS = c(1280,1920,1920,960)
-IMG_HEIGHTS = c(720,1080,1080,540)
+IMG_WIDTHS = c(1280,1920,1920,720) #960
+IMG_HEIGHTS = c(720,1080,1080,720) #540
 
 IMG_WIDTH = IMG_WIDTHS[video]
 IMG_HEIGHT= IMG_HEIGHTS[video]
@@ -100,8 +101,7 @@ adjusted_data <- filter(all_results, subj %in% missing_calibs$subj) %>%
   bind_rows(adjusted_data)
 }
 
-
- ###############################################################################
+###############################################################################
 ################################ Get Trial Data ###############################
 ###############################################################################
 zero_times <- function(gaze_data, stim_length, split = FALSE) {
@@ -140,10 +140,20 @@ test_data <- adjusted_data %>%
   group_by(subj, Stimulus) %>%
   zero_times(., TEST_LENGTH, split = T) %>%
   left_join(test_annotations) 
+# 
+# calib_data <- filter(adjusted_data,Stimulus == "calib.avi") %>%
+#   group_by(subj, Stimulus) %>%
+#   zero_times(., CALIB_STIM_LENGTH)
 
 ###############################################################################
 ################################## Read AOIS ##################################
 ###############################################################################
+closest <- function(time) {
+  times = trunc(seq(floor(time),ceiling(time), 1/FRAME_RATE))
+  diffs <- abs(time - times)
+  times[which(diffs == min(diffs))]
+}
+
 train_annotations <- read_csv(paste0("processed_data/aois/", 
                                      VIDEOS[video], "_trains.csv"))
 
@@ -151,19 +161,23 @@ if(VIDEOS[video] == "soc_word") {
   source('loading_helpers/load_aois_socword.R')
   train_aois <- get_train_aois(video = VIDEOS[video],
                                annotations = train_annotations) %>%
-    mutate(Time = trunc(Time)) %>%
+    rowwise() %>%
+    mutate(Time = closest(Time)) %>%
     filter(!str_detect(aoi_name, "hand")) %>%
     left_join(train_annotations)
   
 } else {
   source('loading_helpers/load_aois.R')
   train_aois <- get_train_aois(video = VIDEOS[video]) %>%
-    mutate(Time = trunc(Time)) %>%
+    rowwise() %>%
+    mutate(Time = closest(Time)) %>%
     filter(!str_detect(aoi_name, "hand"))
 }
 
 test_aois <- get_test_aois() %>%
   mutate(Time = trunc(Time))
+
+
 
 ###############################################################################
 ################################ Make Heatmaps ################################
@@ -173,12 +187,6 @@ test_aois <- get_test_aois() %>%
 ###############################################################################
 ################################# Process AOIS ################################
 ###############################################################################
-closest <- function(time) {
-  times = trunc(seq(floor(time),ceiling(time), 1/FRAME_RATE))
-  diffs <- abs(time - times)
-  times[which(diffs == min(diffs))]
-}
-
 train_all_aoi_data <- left_join(learn_data, train_aois) %>%
   filter(!is.na(aoi_name)) %>%
   mutate(in_aoi = (x >= top_left_x - AOI_BUFFER) & 

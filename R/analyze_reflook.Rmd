@@ -350,7 +350,7 @@ plotting_data <- learn_data_age_group %>%
   rowwise() %>%
   mutate(window_num = which(levels(window_type) == window_type))
 
-#quartz(width=8, height=4, title = "Learning")
+quartz(width=8, height=4, title = "Learning")
 ggplot(plotting_data, aes(x = window_num, y = mean, colour = age_group, 
                                group = age_group, label = age_group)) +
   geom_pointrange(aes(ymin = ci_lower,
@@ -452,7 +452,7 @@ corr_plot_data <- model_data %>%
                         labels = c("Typical", "ASD")))
 
 
-#quartz(width = 4, height = 6)
+quartz(width = 4, height = 6)
 ggplot(data = corr_plot_data,
        aes(x = gaze_following, y = Novel, color = age_group,
            group = 1)) +

@@ -30,12 +30,21 @@ get_train_aois <- function(video, annotations) {
                  bottom_right_x = NA,
                  bottom_right_y = NA)
     }
+    
+    # CONVERTED FIRST TO 16/10 and then 1/1
+    # Started at 960 x 540
+    # Then padded to to 960 x 720 -- should shift y's up by 90
+    # Then cropped to 720 x 720 -- should shift x's left by 120
     else {
       data.frame(Time = as.numeric(key_frame_df$Timestamp)/1000000,
-                 top_left_x = as.numeric(key_frame_df$Points[1]$Point$X) * SCALE_X,
-                 top_left_y = as.numeric(key_frame_df$Points[1]$Point$Y) * SCALE_Y,
-                 bottom_right_x = as.numeric(key_frame_df$Points[2]$Point$X) * SCALE_X,
-                 bottom_right_y = as.numeric(key_frame_df$Points[2]$Point$Y) * SCALE_Y)
+                 top_left_x = (as.numeric(key_frame_df$Points[1]$Point$X) 
+                               - 120) * SCALE_X,
+                 top_left_y = (as.numeric(key_frame_df$Points[1]$Point$Y) 
+                               + 90) * SCALE_Y,
+                 bottom_right_x = (as.numeric(key_frame_df$Points[2]$Point$X) 
+                                   - 120) * SCALE_X,
+                 bottom_right_y = (as.numeric(key_frame_df$Points[2]$Point$Y) 
+                                   + 90) * SCALE_Y)
     }
   }
   
