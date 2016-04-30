@@ -11,7 +11,7 @@
 
 <meta name="author" content="Daniel Yurovsky, Anna Wade, Allison M Krauss, Grace w. Gengoux, Antonio Hardan, &amp; Michael C Frank" />
 
-<meta name="date" content="2016-04-25" />
+<meta name="date" content="2016-04-29" />
 
 <title>Developmental changes in the speed of social attention in early word learning – Experiments 1 and 2</title>
 
@@ -139,7 +139,7 @@ $(document).ready(function () {
 
 <h1 class="title">Developmental changes in the speed of social attention in early word learning – Experiments 1 and 2</h1>
 <h4 class="author"><em>Daniel Yurovsky, Anna Wade, Allison M Krauss, Grace w. Gengoux, Antonio Hardan, &amp; Michael C Frank</em></h4>
-<h4 class="date"><em>2016-04-25</em></h4>
+<h4 class="date"><em>2016-04-29</em></h4>
 
 </div>
 
@@ -995,19 +995,20 @@ age_test_nulls &lt;-<span class="st"> </span>test_data_subj %&gt;%
 </tbody>
 </table>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co">#Child tests</span>
-child_age_test_types &lt;-<span class="st"> </span><span class="kw">lm</span>(prop ~<span class="st"> </span>type *<span class="st"> </span>age, <span class="dt">data =</span> <span class="kw">filter</span>(test_data_subj,
-                                                      group ==<span class="st"> &quot;child&quot;</span>))
+child_age_test_types &lt;-<span class="st"> </span><span class="kw">lmer</span>(prop ~<span class="st"> </span>type *<span class="st"> </span>age +<span class="st"> </span>(<span class="dv">1</span>|subj), 
+                             <span class="dt">data =</span> <span class="kw">filter</span>(test_data_subj, group ==<span class="st"> &quot;child&quot;</span>))
 
 
-<span class="kw">kable</span>(<span class="kw">tidy</span>(child_age_test_types))</code></pre></div>
+<span class="kw">kable</span>(<span class="kw">summary</span>(child_age_test_types)$coefficients)</code></pre></div>
 <table>
 <thead>
 <tr class="header">
-<th align="left">term</th>
-<th align="right">estimate</th>
-<th align="right">std.error</th>
-<th align="right">statistic</th>
-<th align="right">p.value</th>
+<th align="left"></th>
+<th align="right">Estimate</th>
+<th align="right">Std. Error</th>
+<th align="right">df</th>
+<th align="right">t value</th>
+<th align="right">Pr(&gt;|t|)</th>
 </tr>
 </thead>
 <tbody>
@@ -1015,68 +1016,76 @@ child_age_test_types &lt;-<span class="st"> </span><span class="kw">lm</span>(pr
 <td align="left">(Intercept)</td>
 <td align="right">0.4702835</td>
 <td align="right">0.0287507</td>
+<td align="right">392.7419</td>
 <td align="right">16.3573039</td>
 <td align="right">0.0000000</td>
 </tr>
 <tr class="even">
 <td align="left">typeNovel</td>
 <td align="right">-0.0192639</td>
-<td align="right">0.0406596</td>
-<td align="right">-0.4737841</td>
-<td align="right">0.6359163</td>
+<td align="right">0.0394919</td>
+<td align="right">197.0001</td>
+<td align="right">-0.4877925</td>
+<td align="right">0.6262392</td>
 </tr>
 <tr class="odd">
 <td align="left">age</td>
 <td align="right">0.0679929</td>
 <td align="right">0.0085746</td>
+<td align="right">392.7419</td>
 <td align="right">7.9295606</td>
 <td align="right">0.0000000</td>
 </tr>
 <tr class="even">
 <td align="left">typeNovel:age</td>
 <td align="right">-0.0293999</td>
-<td align="right">0.0121263</td>
-<td align="right">-2.4244672</td>
-<td align="right">0.0157799</td>
+<td align="right">0.0117781</td>
+<td align="right">197.0001</td>
+<td align="right">-2.4961518</td>
+<td align="right">0.0133755</td>
 </tr>
 </tbody>
 </table>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">asd_age_test_types &lt;-<span class="st"> </span><span class="kw">lm</span>(prop ~<span class="st"> </span>type +<span class="st"> </span>age, <span class="dt">data =</span> <span class="kw">filter</span>(test_data_subj,
-                                                      group ==<span class="st"> &quot;ASD&quot;</span>))
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">asd_age_test_types &lt;-<span class="st"> </span><span class="kw">lmer</span>(prop ~<span class="st"> </span>type +<span class="st"> </span>age +<span class="st"> </span>(<span class="dv">1</span>|subj), 
+                         <span class="dt">data =</span> <span class="kw">filter</span>(test_data_subj, group ==<span class="st"> &quot;ASD&quot;</span>))
 
 
-<span class="kw">kable</span>(<span class="kw">tidy</span>(asd_age_test_types))</code></pre></div>
+<span class="kw">kable</span>(<span class="kw">summary</span>(asd_age_test_types)$coefficients)</code></pre></div>
 <table>
 <thead>
 <tr class="header">
-<th align="left">term</th>
-<th align="right">estimate</th>
-<th align="right">std.error</th>
-<th align="right">statistic</th>
-<th align="right">p.value</th>
+<th align="left"></th>
+<th align="right">Estimate</th>
+<th align="right">Std. Error</th>
+<th align="right">df</th>
+<th align="right">t value</th>
+<th align="right">Pr(&gt;|t|)</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
 <td align="left">(Intercept)</td>
 <td align="right">0.5601303</td>
-<td align="right">0.0674067</td>
-<td align="right">8.3097158</td>
-<td align="right">0.0000000</td>
+<td align="right">0.0789349</td>
+<td align="right">28.51617</td>
+<td align="right">7.0961047</td>
+<td align="right">0.0000001</td>
 </tr>
 <tr class="even">
 <td align="left">typeNovel</td>
 <td align="right">-0.0617528</td>
-<td align="right">0.0339395</td>
-<td align="right">-1.8194956</td>
-<td align="right">0.0742803</td>
+<td align="right">0.0260926</td>
+<td align="right">28.00002</td>
+<td align="right">-2.3666785</td>
+<td align="right">0.0250995</td>
 </tr>
 <tr class="odd">
 <td align="left">age</td>
 <td align="right">0.0054333</td>
-<td align="right">0.0156837</td>
-<td align="right">0.3464306</td>
-<td align="right">0.7303410</td>
+<td align="right">0.0187163</td>
+<td align="right">27.00000</td>
+<td align="right">0.2902996</td>
+<td align="right">0.7738051</td>
 </tr>
 </tbody>
 </table>
@@ -1496,7 +1505,7 @@ resid_looks &lt;-<span class="st"> </span>age_resid_data %&gt;%
 <span class="st">  </span><span class="kw">split</span>(.$group) %&gt;%
 <span class="st">  </span><span class="kw">map</span>(~<span class="kw">tidy</span>(<span class="kw">lm</span>(resid ~<span class="st"> </span>look_name2, <span class="dt">data =</span> .))) %&gt;%
 <span class="st">  </span><span class="kw">bind_rows</span>(<span class="dt">.id =</span> <span class="st">&quot;group&quot;</span>) %&gt;%
-<span class="st">  </span><span class="kw">rename</span>(<span class="dt">predictor =</span> term, <span class="dt">beta =</span> estimate, <span class="dt">z =</span> statistic)
+<span class="st">  </span><span class="kw">rename</span>(<span class="dt">predictor =</span> term, <span class="dt">beta =</span> estimate, <span class="dt">t =</span> statistic)
 
 <span class="kw">kable</span>(resid_looks)</code></pre></div>
 <table>
@@ -1506,7 +1515,7 @@ resid_looks &lt;-<span class="st"> </span>age_resid_data %&gt;%
 <th align="left">predictor</th>
 <th align="right">beta</th>
 <th align="right">std.error</th>
-<th align="right">z</th>
+<th align="right">t</th>
 <th align="right">p.value</th>
 </tr>
 </thead>
@@ -1565,31 +1574,55 @@ resid_age &lt;-<span class="st"> </span>look_resid_data %&gt;%
 <span class="st">  </span><span class="kw">split</span>(.$group) %&gt;%
 <span class="st">  </span><span class="kw">map</span>(~<span class="kw">tidy</span>(<span class="kw">lm</span>(resid ~<span class="st"> </span>age, <span class="dt">data =</span> .))) %&gt;%
 <span class="st">  </span><span class="kw">bind_rows</span>(<span class="dt">.id =</span> <span class="st">&quot;group&quot;</span>) %&gt;%
-<span class="st">  </span><span class="kw">rename</span>(<span class="dt">predictor =</span> term, <span class="dt">beta =</span> estimate, <span class="dt">z =</span> statistic)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># cor_data &lt;- left_join(spread(test_data_subj, type, prop),</span>
-<span class="co">#                       spreadlearn_data_subj, window_type, prop)) %&gt;%</span>
-<span class="co">#   filter(group != &quot;adult&quot;) %&gt;%</span>
-<span class="co">#   gather(predictor, value, Familiar, age, baseline:contact_end) %&gt;%</span>
-<span class="co">#   filter(predictor %in% c(&quot;Familiar&quot;, &quot;age&quot;, &quot;look_name2&quot;))</span>
-<span class="co"># </span>
-<span class="co"># </span>
-<span class="co"># cor_data %&gt;%</span>
-<span class="co">#   group_by(group, predictor) %&gt;%</span>
-<span class="co">#   summarise(correlation = cor(value, Novel, use = &quot;complete&quot;))</span>
-<span class="co"># </span>
-<span class="co"># ggplot(filter(cor_data, predictor %in% c(&quot;Familiar&quot;, &quot;age&quot;, &quot;look_name2&quot;)), </span>
-<span class="co">#        aes(x = value, y = Novel, colour = predictor))+</span>
-<span class="co">#   facet_grid(group ~ predictor, scales = &quot;free&quot;) +</span>
-<span class="co">#   geom_smooth(method = &quot;lm&quot;, size = 1.5) +</span>
-<span class="co">#   geom_point(size = 2)+</span>
-<span class="co">#  # scale_x_continuous(name = &quot;Predictor&quot;,limits = c(0, 1.2)) +</span>
-<span class="co">#   scale_y_continuous(name = &quot;Test looking&quot;,limits = c(0, 1.2)) +</span>
-<span class="co">#   theme_bw(base_size=16) + </span>
-<span class="co">#   theme(legend.position=&quot;none&quot;, legend.title=element_blank(),</span>
-<span class="co">#         panel.grid=element_blank(), axis.title.x=element_text(vjust=-.5),</span>
-<span class="co">#         axis.title.y=element_text(vjust=1)) +</span>
-<span class="co">#   scale_color_brewer(palette = &quot;Set1&quot;)</span>
-<span class="co"># ```</span></code></pre></div>
+<span class="st">  </span><span class="kw">rename</span>(<span class="dt">predictor =</span> term, <span class="dt">beta =</span> estimate, <span class="dt">t =</span> statistic)
+
+<span class="kw">kable</span>(resid_age)</code></pre></div>
+<table>
+<thead>
+<tr class="header">
+<th align="left">group</th>
+<th align="left">predictor</th>
+<th align="right">beta</th>
+<th align="right">std.error</th>
+<th align="right">t</th>
+<th align="right">p.value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">child</td>
+<td align="left">(Intercept)</td>
+<td align="right">-0.0617402</td>
+<td align="right">0.0304189</td>
+<td align="right">-2.0296649</td>
+<td align="right">0.0437707</td>
+</tr>
+<tr class="even">
+<td align="left">child</td>
+<td align="left">age</td>
+<td align="right">0.0192402</td>
+<td align="right">0.0090477</td>
+<td align="right">2.1265351</td>
+<td align="right">0.0347358</td>
+</tr>
+<tr class="odd">
+<td align="left">ASD</td>
+<td align="left">(Intercept)</td>
+<td align="right">0.0377816</td>
+<td align="right">0.0890115</td>
+<td align="right">0.4244578</td>
+<td align="right">0.6757630</td>
+</tr>
+<tr class="even">
+<td align="left">ASD</td>
+<td align="left">age</td>
+<td align="right">-0.0096390</td>
+<td align="right">0.0218926</td>
+<td align="right">-0.4402831</td>
+<td align="right">0.6644537</td>
+</tr>
+</tbody>
+</table>
 
 
 

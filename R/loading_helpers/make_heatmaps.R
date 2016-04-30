@@ -3,7 +3,7 @@ library(grid)
 ################################ Make heat maps ###############################
 ###############################################################################
 if(VIDEOS[video] == "soc_word") {
-  learn_video <- "s1_2bosa"
+  learn_video <- "s1_1manu"
   
   # SWITCH_SUBJ = "2013_04_30_265"
   # 
@@ -29,35 +29,38 @@ if(VIDEOS[video] == "soc_word") {
 }
 
 #times <- times[1:1441]
-#frames <- frames[1:441]
+#frames <- frames[1:1441]
 
 output_type <- "jpeg" #jpeg or pdf
 
 plot_maps <- function(time, frame) {
+  
+  VIDEO_HEIGHT = ifelse(VIDEOS[video] == "soc_word", 480, 360)
+  
   data <- filter(heatmap_data, Time == time)
   aois <- filter(heatmap_aois, Time == time) %>%
     mutate(x = 0, y = 0)
   
   raw_img <- load.image(frame) %>%
     pad(., 180, "y") %>%save.image("try.jpeg")
-  # 
-  # 
-  # 
+  #
+
+
   # img <- readJPEG(frame)
   # 
   # img <- img[,120:839,]
   # 
   img <- readJPEG("try.jpeg")
   img <- img[,120:839,]
-  
+  # 
   if(output_type == "pdf") {
     pdf(file = paste0("processed_data/heatmaps/", VIDEOS[video], "/",
                       GROUP, "/" , last(unlist(str_split(frame, "/"))),
-                      ".pdf"), width=640, height=480)
+                      ".pdf"), width=640, height=VIDEO_HEIGHT)
   } else {
     jpeg(file = paste0("processed_data/heatmaps/", VIDEOS[video], "/",
                       GROUP, "/" , last(unlist(str_split(frame, "/"))),
-                      ".jpeg"), width=640, height=480)
+                      ".jpeg"), width=640, height=VIDEO_HEIGHT)
   }
 
   
@@ -68,8 +71,9 @@ plot_maps <- function(time, frame) {
     #geom_point(color = "red") +
     stat_density2d(aes(fill=..level..,alpha=..level..), 
                    geom="polygon") +
-    scale_alpha(range = c(.1, .5)) +
-    scale_fill_gradient(low="blue", high="green")
+    scale_alpha(range = c(.01, .25)) +
+   # scale_fill_gradient(low="blue", high="green", limits = c(0,.00002))
+    scale_fill_gradient(low="blue", high="green", limits = c(0,.0001))
   
   if(nrow(aois) > 0) {
     heat_map <- heat_map + geom_rect(aes(xmin = top_left_x - AOI_BUFFER,# - 280,
@@ -97,6 +101,8 @@ plot_maps <- function(time, frame) {
   dev.off()
 }
 
+stats <- ggplot_build(heat_map)
+table(stats$data[[2]]$level)
 
 
 plots <- mapply(plot_maps, times, frames)

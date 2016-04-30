@@ -38,7 +38,6 @@ library(broom)
 library(lme4)
 library(lmerTest)
 library(irr)
-library(psych)
 ```
 
 Set constants for onset and offset of windows for computing preferential looking
@@ -324,7 +323,6 @@ test_data_age_group <- test_data_subj %>%
 kable(test_data_age_group)
 ```
 
-Test
 Learning plot
 ```{r learn_dot_plot, fig.width=7, fig.height=4}
 #quartz(width = 7, height = 4)
@@ -347,7 +345,7 @@ ggplot(learn_data_age_group,
   scale_color_brewer(palette = "Set1") 
 ```
 
- plot
+Test plot
 ```{r test_dot_plot, fig.width = 5.5, fig.height = 4}
 #quartz(width = 5.5, height = 4)
 ggplot(test_data_age_group,
@@ -379,28 +377,14 @@ familiars <- test_data_subj %>%
   summarise(Familiar = mean(prop, na.rm = T))
 
 # Test 
-dependent_wide <- test_data_subj %>%
+dependent <- test_data_subj %>%
   filter(object_type != "Familiar") %>%
-  spread(object_type, prop)
-
-dependent <- dependent_wide %>%
+  spread(object_type, prop) %>%
   gather(object_type, test, c(`Brief Look`, `Extended Hold`)) %>%
   left_join(familiars)
 
 # Data for mixed effects model
 model_data <- left_join(dependent, learn_data_subj)
-
-# Learning data
-independent_wide <- learn_data_subj %>%
-   spread(object_type, prop) %>%
-    rename(brief_learn = `Brief Look`,
-         extended_learn = `Extended Hold`)
-
-# Wide-format data for correlations
-all_data_wide <- dependent_wide %>%
-  rename(brief_test = `Brief Look`,
-         extended_test = `Extended Hold`) %>%
- left_join(independent_wide)
 ```
 
 Age, cue type, and learning
@@ -415,18 +399,10 @@ learn_corrs <- learn_data_subj %>%
 kable(learn_corrs)
 
 # Does looking during learning trials predict test better for Brief Look trials?
-learn_cor_data <- all_data_wide %>%
-  ungroup() %>%
-  select(age, extended_learn, brief_learn) %>%
-  filter(!is.na(extended_learn) & !is.na(brief_learn))
+learn_corr_interaction <- lmer(prop ~ object_type * age + (1|subj), 
+                               data = learn_data_subj)
 
-learn_cors_wide <- cor(learn_cor_data)
-
-learn_cor_dif <- r.test(n = nrow(learn_cor_data), r12 = learn_cors_wide[1,2], 
-                        r13 = learn_cors_wide[1,3], r23 = learn_cors_wide[2,3])
-
-kable(data.frame(t = learn_cor_dif$t, p = learn_cor_dif$p), 
-      caption = learn_cor_dif$test)
+kable(summary(learn_corr_interaction)$coefficients)
 ```
 
 Predicting test performance
@@ -472,23 +448,11 @@ test_corrs <- model_data %>%
 
 kable(test_corrs)
 
-test_cor_data <- all_data_wide %>%
-  filter(!is.na(extended_learn) & !is.na(brief_learn) & 
-           !is.na(extended_test) & !is.na(brief_test)) %>%
-  ungroup() %>%
-  select(brief_learn, brief_test, extended_learn, extended_test)
-
-test_cors_wide <- cor(test_cor_data)
-
-test_cor_dif <- r.test(n = nrow(test_cor_data), r12 = test_cors_wide[1,2], 
-                   r13 = test_cors_wide[1,3], r23 = test_cors_wide[2,3], 
-                   r14 = test_cors_wide[1,4], r24 =  test_cors_wide[2,4],
-                   r34 = test_cors_wide[3,4])
-
-
-kable(data.frame(z = test_cor_dif$z, p = test_cor_dif$p), 
-      caption = test_cor_dif$test)
-
+# Does looking during the learning trials matter more for the more difficult
+# Brief look?
+test_corr_interaction <- lmer(test ~ object_type * prop + (1|subj),
+                              data = model_data)
+kable(summary(test_corr_interaction)$coefficients)
 ```
 
 ```{r plot_correlations, fig.width = 4, fig.height = 6}

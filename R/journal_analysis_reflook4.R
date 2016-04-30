@@ -1,8 +1,3 @@
-# clear all previous variables
-rm(list=ls())
-
-#get lab version of useful R functions
-
 #load libraries for data manipulation and graphing
 library(data.table)
 library(directlabels)
@@ -13,25 +8,21 @@ library(magrittr)
 library(readr)
 library(langcog)
 library(ggplot2)
-library(cowplot)
 
 #splits ages into half-years
-split.ages <-function(x) {floor(x)}
+split_ages <-function(x) {floor(x)}
 na.mean <- function(x){mean(x,na.rm=T)}
 na.sum <- function(x){sum(x,na.rm=T)}
 #Constants for window-of-interest analysis
-TEST_START <- 1
-TEST_END <- 4
-TRAIN_START <- 0
-TRAIN_END <- 15
+
 
 #Use color-brewer colors for graphing
-man_cols <- c("#e41a1c","#377eb8","#4daf4a",
-              "#984ea3","#ff7f00","#a65628",
-              "#f781bf","#999999")
-
-man_cols <- c("#d0d1e6","#74a9cf","#0570b0","#023858","#ec7014","#1a9850")
-
+# man_cols <- c("#e41a1c","#377eb8","#4daf4a",
+#               "#984ea3","#ff7f00","#a65628",
+#               "#f781bf","#999999")
+# 
+# man_cols <- c("#d0d1e6","#74a9cf","#0570b0","#023858","#ec7014","#1a9850")
+# 
 
 man_cols <- c("#c6dbef","#6baed6","#2171b5","#08306b","#f16913","#6a51a3")
 
@@ -39,113 +30,127 @@ man_cols <- c("#c6dbef","#6baed6","#2171b5","#08306b","#f16913","#6a51a3")
 ################################ LOADING DATA #################################
 ###############################################################################
 #read looking data
-raw.child.train.data <- fread("processed_data/csvs/child/reflook_train_data.csv") %>%
-  mutate(age.grp = as.factor(split.ages(age))) %>%
+raw_child_train_data <- fread("processed_data/csvs/reflook/child/train_data.csv") %>%
+  mutate(age_grp = as.factor(split_ages(age))) %>%
+ # mutate(age_grp = "child") %>%
   filter(age >= 1 & age < 5)
 
-raw.child.test.data <- fread("processed_data/csvs/child/reflook_test_data.csv") %>%
-  mutate(age.grp = as.factor(split.ages(age))) %>%
-  mutate(gender = factor(gender,labels=c("Male", "Female"))) %>%
+raw_child_test_data <- fread("processed_data/csvs/reflook/child/test_data.csv") %>%
+  #mutate(age_grp = "child") %>%
+  mutate(age_grp = as.factor(split_ages(age))) %>%
   filter(age >= 1 & age < 5)
 
+raw_adult_train_data <- fread("processed_data/csvs/reflook/adult/train_data.csv") %>%
+  mutate(age = NA, age_grp = "adult") 
 
-raw.adult.train.data <- fread("processed_data/csvs/adult/reflook_train_data.csv") %>%
-  mutate(age = NA,age.grp = "adult") 
-raw.adult.test.data <- fread("processed_data/csvs/adult/reflook_test_data.csv") %>%
-  mutate(age = NA,age.grp = "adult") 
+raw_adult_test_data <- fread("processed_data/csvs/reflook/adult/test_data.csv") %>%
+  mutate(age = NA, age_grp = "adult") 
 
-raw.ASD.train.data <- fread("processed_data/csvs/ASD/reflook_train_data.csv") %>%
-  filter(is.na(age) | age <= 7) %>%
-  mutate(age.grp = "ASD") 
+raw_ASD_train_data <- fread("processed_data/csvs/reflook/ASD/train_data.csv") %>%
+  filter(age <= 8) %>%
+  mutate(age_grp = "ASD") 
 
-raw.ASD.test.data <- fread("processed_data/csvs/ASD/reflook_test_data.csv") %>%
-  filter(is.na(age) | age <= 7) %>%
-  mutate(age.grp = "ASD")
-
-raw.ASD.train.data <- fread("processed_data/csvs/birthday/reflook_train_data.csv") %>%
-  filter(is.na(age) | age <= 7) %>%
-  mutate(age.grp = "ASD") 
-
-raw.ASD.test.data <- fread("processed_data/csvs/birthday/reflook_test_data.csv") %>%
-  filter(is.na(age) | age <= 7) %>%
-  mutate(age.grp = "ASD")
-
-
-raw.test.data <- raw.ASD.test.data
-raw.train.data <- raw.ASD.train.data
+raw_ASD_test_data <- fread("processed_data/csvs/reflook/ASD/test_data.csv") %>%
+  filter(age <= 8) %>%
+  mutate(age_grp = "ASD")
 
 ###############################################################################
 ################################## Exclusions #################################
 ###############################################################################
-start.ps <- raw.child.test.data %>%
-  group_by(age.grp) %>%
+start_ps <- raw_child_test_data %>%
+  group_by(age_grp) %>%
   summarise(n = length(unique(subj)))
   
-dropped.english <- raw.child.test.data %>%
-  filter(english <4) %>%
+dropped_english <- raw_child_test_data %>%
+  filter(english < 4 | is.na(english)) %>%
   summarise(n = (length(unique(subj))))
 
-dropped.premie <- raw.child.test.data %>%
-  filter(premie == 2) %>%
+dropped_premie <- raw_child_test_data %>%
+  filter(premie == 2 | is.na(premie)) %>%
   summarise(n = (length(unique(subj))))
 
-kept.ps <- raw.child.test.data %>%
-  filter(english >= 4) 
+kept_ps <- raw_child_test_data %>%
+#  filter(english >= 4, !is.na(english)) 
+  filter(english >= 4, premie != 2, !is.na(premie), !is.na(english)) 
 
-count.girls <- kept.ps %>%
-  group_by(age.grp,gender) %>%
-  summarise(kept.girls = length(unique(subj))) %>%
-  filter(gender == "Female")
+count_girls <- kept_ps %>%
+  group_by(age_grp,gender) %>%
+  summarise(kept_girls = length(unique(subj))) %>%
+  filter(gender == "Female") %>%
+  select(-gender)
 
-count.ps <- kept.ps %>%
-  group_by(age.grp) %>%
+count_ps <- kept_ps %>%
+  group_by(age_grp) %>%
   summarise(n = length(unique(subj))) %>%
-  left_join(kept.girls)
+  left_join(count_girls)
 
-kept.child.train.data <- raw.child.train.data %>%
-  filter(subj %in% unique(kept.ps$subj)) %>%
+kept_child_train_data <- raw_child_train_data %>%
+  filter(subj %in% unique(kept_ps$subj)) %>%
   select(-gender,-english,-premie)
 
-kept.child.test.data <- raw.child.test.data %>%
-  filter(subj %in% unique(kept.ps$subj)) %>%
+kept_child_test_data <- raw_child_test_data %>%
+  filter(subj %in% unique(kept_ps$subj)) %>%
   select(-gender,-english,-premie)
 
 # raw.ASD.data <- read_csv("data/reflook4_ASD_data.csv") %>%
 #   mutate(age.grp = "ASD") %>%
 #  filter(age >= 1 & age < 6)
+# 
+raw_test_data <- bind_rows(kept_child_test_data, raw_adult_test_data,
+                           raw_ASD_test_data) %>%
+#   mutate(age_grp = factor(age_grp, levels = c("1", "2", "3", "4",
+#                                                   "ASD", "adult")),
+         mutate(subj = paste0(age_grp, "_", subj))
+
+raw_train_data <- bind_rows(kept_child_train_data, raw_adult_train_data,
+                            raw_ASD_train_data) %>%
+  mutate(window_type = factor(window_type, 
+                              levels = c("baseline","name_look","look_name2",
+                                         "name2_reach","reach_contact",
+                                         "contact_end")),
+#          age_grp = factor(age_grp, levels = c("1", "2", "3", "4",
+#                                               "ASD", "adult")),
+         subj = paste0(age_grp, "_", subj))
 
 
-raw.test.data <- bind_rows(kept.child.test.data,raw.adult.test.data)
-raw.train.data <- raw.train.data%>%#bind_rows(kept.child.train.data,raw.adult.train.data) %>%
-  mutate(window.type = factor(window.type, 
-                              levels = c("baseline","name.look","look.name2",
-                                         "name2.reach","reach.contact",
-                                         "contact.end")))
-
-
-na.out.missing <- function(data,prop = .5) {
+na_out_missing <- function(data, PROP = .5, MIN_TRIALS = 4) {
   
+na_props <- data %>%
+  group_by(subj, trial) %>%
+  summarise(na_prop = sum(is.na(aoi))/length(aoi))
 
-na.props <- data %>%
-  group_by(subj,trial) %>%
-  summarise(na.prop = sum(is.na(aoi))/length(aoi))
+na_subjs <- na_props %>%
+  summarise(na_trials = sum(na_prop > PROP)) %>%
+  group_by(subj) %>%
+  filter(na_trials > (8 - MIN_TRIALS))
 
-complete.data <- na.props %>%
-  filter(na.prop <= .5) %>%
-  select(-na.prop) %>%
+complete_data <- na_props %>%
+  filter(!subj %in% na_subjs$subj) %>%
+  filter(na_prop <= PROP) %>%
+  select(-na_prop) %>%
   left_join(data)
 
-missing.data <- na.props %>%
-  filter(na.prop > .5) %>%
-  select(-na.prop) %>%
-  left_join(mutate(data,aoi=NA))
+missing_data <- na_props %>%
+  filter(!subj %in% na_subjs$subj) %>%
+  filter(na_prop > PROP) %>%
+  select(-na_prop) %>%
+  left_join(mutate(data, aoi = NA))
 
-bind_rows(complete.data,missing.data) %>%
+missing_subjs <- na_props %>%
+  filter(subj %in% na_subjs$subj) %>%
+  left_join(mutate(data, aoi = NA))
+  
+
+bind_rows(complete_data,missing_data, missing_subjs) %>%
   arrange(subj,trial,Time)
 }
 
-clean.test.data <- na.out.missing(raw.test.data)
-clean.train.data <- na.out.missing(raw.train.data)
+novel_data <- filter(raw_test_data, type == "Novel")
+familiar_data <- filter(raw_test_data, type == "Familiar")
+
+test_data <- bind_rows(na_out_missing(novel_data),
+                       na_out_missing(familiar_data))
+train_data <- na_out_missing(raw_train_data)
 
 # Reshape data for subsequent analyses 
 source('analysis_helpers/munge_data_reflook4.R')

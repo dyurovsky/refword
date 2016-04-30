@@ -350,7 +350,7 @@ plotting_data <- learn_data_age_group %>%
   rowwise() %>%
   mutate(window_num = which(levels(window_type) == window_type))
 
-quartz(width=8, height=4, title = "Learning")
+#quartz(width=8, height=4, title = "Learning")
 ggplot(plotting_data, aes(x = window_num, y = mean, colour = age_group, 
                                group = age_group, label = age_group)) +
   geom_pointrange(aes(ymin = ci_lower,
@@ -413,18 +413,18 @@ age_test_nulls <- test_data_subj %>%
 kable(age_test_nulls)
 
 #Child tests
-child_age_test_types <- lm(prop ~ type * age, data = filter(test_data_subj,
-                                                      group == "child"))
+child_age_test_types <- lmer(prop ~ type * age + (1|subj), 
+                             data = filter(test_data_subj, group == "child"))
 
 
-kable(tidy(child_age_test_types))
+kable(summary(child_age_test_types)$coefficients)
 
 
-asd_age_test_types <- lm(prop ~ type + age, data = filter(test_data_subj,
-                                                      group == "ASD"))
+asd_age_test_types <- lmer(prop ~ type + age + (1|subj), 
+                         data = filter(test_data_subj, group == "ASD"))
 
 
-kable(tidy(asd_age_test_types))
+kable(summary(asd_age_test_types)$coefficients)
 
 
 # Age differences by window_type
@@ -452,7 +452,7 @@ corr_plot_data <- model_data %>%
                         labels = c("Typical", "ASD")))
 
 
-quartz(width = 4, height = 6)
+#quartz(width = 4, height = 6)
 ggplot(data = corr_plot_data,
        aes(x = gaze_following, y = Novel, color = age_group,
            group = 1)) +
@@ -502,7 +502,7 @@ resid_looks <- age_resid_data %>%
   split(.$group) %>%
   map(~tidy(lm(resid ~ look_name2, data = .))) %>%
   bind_rows(.id = "group") %>%
-  rename(predictor = term, beta = estimate, z = statistic)
+  rename(predictor = term, beta = estimate, t = statistic)
 
 kable(resid_looks)
 
@@ -526,10 +526,12 @@ resid_age <- look_resid_data %>%
   split(.$group) %>%
   map(~tidy(lm(resid ~ age, data = .))) %>%
   bind_rows(.id = "group") %>%
-  rename(predictor = term, beta = estimate, z = statistic)
+  rename(predictor = term, beta = estimate, t = statistic)
+
+kable(resid_age)
 ```
 
-```{r correlations}
+```{r correlations, eval = FALSE, echo = FALSE}
 # cor_data <- left_join(spread(test_data_subj, type, prop),
 #                       spreadlearn_data_subj, window_type, prop)) %>%
 #   filter(group != "adult") %>%
